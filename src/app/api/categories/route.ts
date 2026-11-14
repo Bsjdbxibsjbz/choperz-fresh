@@ -38,6 +38,7 @@ export async function GET() {
                 products: {
                   where: {
                     isActive: true,
+                    isPlaceholder: false,
                     deletedAt: null,
                   },
                 },

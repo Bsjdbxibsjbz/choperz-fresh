@@ -71,6 +71,7 @@ export async function GET(request: Request) {
     // Build product filters.
     const where = {
       isActive: true,
+      isPlaceholder: false,
       deletedAt: null,
 
       category: {
