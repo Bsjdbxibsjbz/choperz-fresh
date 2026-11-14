@@ -57,11 +57,9 @@ const products: Seed[] = [
   }),
   { slug: "crab-placeholder", name: "Crab Placeholder", category: "crab", weights: [500, 1000], cuts: ["Cleaned & cut"] },
   { slug: "prawn-placeholder", name: "Prawn Placeholder", category: "prawns", weights: [250, 500], cuts: ["Peeled & deveined", "Shell-on"] },
-  { slug: "chicken-breast", name: "Chicken Breast", category: "chicken-breast", weights: [500, 1000], cuts: [] },
-  { slug: "chicken-leg-piece", name: "Chicken Leg Piece", category: "chicken-leg-piece", weights: [500, 1000], cuts: [] },
-  { slug: "chicken-thigh", name: "Chicken Thigh", category: "chicken-thigh", weights: [500, 1000], cuts: [] },
-  { slug: "boneless-chicken", name: "Boneless Chicken", category: "boneless-chicken", weights: [500, 1000], cuts: [] },
-  { slug: "chicken-curry-cut", name: "Chicken Curry Cut", category: "chicken-curry-cut", weights: [500, 1000], cuts: [] },
+  { slug: "chicken-strips", name: "Chicken Strips", category: "chicken-strips", weights: [500, 1000], cuts: [] },
+  { slug: "chicken-wings", name: "Chicken Wings", category: "chicken-wings", weights: [500, 1000], cuts: [] },
+  { slug: "chicken-lollipops", name: "Chicken Lollipops", category: "chicken-lollipops", weights: [500, 1000], cuts: [] },
 ];
 
 async function main() {
@@ -89,11 +87,50 @@ async function main() {
   await cat("fish", "Fish", 1, seafood.id);
   await cat("crab", "Crab", 2, seafood.id);
   await cat("prawns", "Prawns", 3, seafood.id);
-  const chickenCats: [string, string][] = [
-    ["chicken-breast", "Chicken Breast"], ["chicken-leg-piece", "Chicken Leg Piece"],
-    ["chicken-thigh", "Chicken Thigh"], ["boneless-chicken", "Boneless Chicken"], ["chicken-curry-cut", "Chicken Curry Cut"],
+    const chickenCats: [string, string][] = [
+    ["chicken-strips", "Chicken Strips"],
+    ["chicken-wings", "Chicken Wings"],
+    ["chicken-lollipops", "Chicken Lollipops"],
   ];
   for (const [i, [slug, name]] of chickenCats.entries()) await cat(slug, name, i + 1, chicken.id);
+    // Retire old chicken products replaced by the new catalogue.
+  // Preserve records rather than permanently deleting them.
+  const retiredChickenSlugs = [
+    "chicken-breast",
+    "chicken-leg-piece",
+    "chicken-thigh",
+    "boneless-chicken",
+    "chicken-curry-cut",
+  ];
+
+  await prisma.product.updateMany({
+    where: {
+      slug: { in: retiredChickenSlugs },
+      isPlaceholder: true,
+    },
+    data: {
+      isActive: false,
+      deletedAt: new Date(),
+    },
+  });
+
+  // Deactivate old categories only when they have no active,
+  // verified products remaining.
+  await prisma.category.updateMany({
+    where: {
+      slug: { in: retiredChickenSlugs },
+      products: {
+        none: {
+          isActive: true,
+          isPlaceholder: false,
+          deletedAt: null,
+        },
+      },
+    },
+    data: {
+      isActive: false,
+    },
+  });
 
   // Cut options
   const cutNames = ["Whole, cleaned", "Curry cut", "Fillet", "Cleaned & cut", "Peeled & deveined", "Shell-on"];
