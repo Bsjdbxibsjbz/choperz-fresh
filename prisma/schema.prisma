@@ -84,16 +84,16 @@ enum RefundStatus {
 // NOTE: compare with `npx @better-auth/cli generate` in Phase 3
 // so these match the installed Better Auth version exactly.
 model User {
-  id            String   @id
-  name          String
-  email         String   @unique
-  emailVerified Boolean  @default(false)
-  image         String?
+  id                  String   @id
+  name                String
+  email               String   @unique
+  emailVerified       Boolean  @default(false)
+  image               String?
   phoneNumber         String?
   phoneNumberVerified Boolean?
-  kind          UserKind @default(CUSTOMER)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  kind                UserKind @default(CUSTOMER)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   sessions     Session[]
   accounts     Account[]
@@ -103,8 +103,8 @@ model User {
   orders       Order[]
   staffProfile StaffProfile?
 
-  @@map("users")
   @@unique([phoneNumber])
+  @@map("users")
 }
 
 model Session {
@@ -142,7 +142,6 @@ model Account {
   @@map("accounts")
 }
 
-
 model Verification {
   id         String   @id
   identifier String
@@ -154,7 +153,6 @@ model Verification {
   @@index([identifier])
   @@map("verifications")
 }
-
 
 // ───────────── CUSTOMERS ─────────────
 model CustomerProfile {
@@ -345,6 +343,7 @@ model BatchAllocation {
   outlet   Outlet         @relation(fields: [outletId], references: [id])
   grams    Int
 
+  @@unique([batchId, outletId])
   @@index([batchId])
   @@index([outletId])
   @@map("batch_allocations")
@@ -694,14 +693,14 @@ model StaffProfile {
 }
 
 model AuditLog {
-  id       String   @id @default(cuid())
-  actorId  String?
-  action   String
-  entity   String
-  entityId String?
-  before   Json?
-  after    Json?
-  ip       String?
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
   createdAt DateTime @default(now())
 
   @@index([entity, entityId])
