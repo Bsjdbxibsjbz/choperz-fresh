@@ -11,12 +11,8 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
 
-  emailAndPassword: {
-    enabled: true,
-    minPasswordLength: 12,
-    maxPasswordLength: 128,
-  },
-
+  // Customer accounts default to CUSTOMER.
+  // Users cannot choose their own account type during registration.
   user: {
     additionalFields: {
       kind: {
@@ -34,9 +30,13 @@ export const auth = betterAuth({
       expiresIn: 300,
       allowedAttempts: 3,
 
+      // Accept phone numbers in international E.164 format.
+      // Example: +919876543210
       phoneNumberValidator: (value) =>
         /^\+[1-9]\d{7,14}$/.test(value),
 
+      // Development-only OTP delivery.
+      // A real SMS provider must be configured before production.
       sendOTP: ({ phoneNumber, code }) => {
         if (process.env.NODE_ENV !== "development") {
           throw new Error(
@@ -49,6 +49,8 @@ export const auth = betterAuth({
         );
       },
 
+      // Better Auth requires a temporary email for new
+      // phone-based accounts. Customers never enter this.
       signUpOnVerification: {
         getTempEmail: (phoneNumber) =>
           `${phoneNumber.replace(/\D/g, "")}@phone.choperz.invalid`,
