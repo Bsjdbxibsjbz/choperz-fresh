@@ -161,18 +161,17 @@ export async function POST(request: Request) {
         throw new Error("INSUFFICIENT_BATCH_ALLOCATION");
       }
 
-      // Atomically deduct stock only when unreserved stock
-      // is sufficient. This prevents transferring stock
-      // already reserved for customer orders.
+      // Atomically deduct stock directly. Reservations are not used.
       const inventoryUpdated = await tx.$executeRaw`
         UPDATE "inventory"
         SET
           "onHandGrams" = "onHandGrams" - ${data.grams},
+          "reservedGrams" = 0,
           "updatedAt" = CURRENT_TIMESTAMP
         WHERE
           "outletId" = ${data.fromOutletId}
           AND "productId" = ${batch.productId}
-          AND "onHandGrams" - "reservedGrams" >= ${data.grams}
+          AND "onHandGrams" >= ${data.grams}
       `;
 
       if (inventoryUpdated !== 1) {
@@ -246,6 +245,7 @@ export async function POST(request: Request) {
           onHandGrams: {
             increment: data.grams,
           },
+          reservedGrams: 0,
         },
       });
 
@@ -344,7 +344,7 @@ export async function POST(request: Request) {
       },
       INSUFFICIENT_AVAILABLE_STOCK: {
         status: 409,
-        message: "Insufficient available stock. Some stock may be reserved for orders.",
+        message: "Insufficient stock at the source outlet.",
       },
     };
 
