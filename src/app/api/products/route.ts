@@ -173,6 +173,14 @@ export async function GET(request: Request) {
       prisma.product.count({ where }),
     ]);
 
+    const inventoryRows = products.length
+      ? await prisma.inventory.findMany({
+          where: { productId: { in: products.map((product) => product.id) }, outlet: { is: { isActive: true } } },
+          select: { productId: true, onHandGrams: true },
+        })
+      : [];
+    const stockedProductIds = new Set(inventoryRows.filter((row) => row.onHandGrams > 0).map((row) => row.productId));
+
     // Hide demo prices and unverified nutrition.
     const result = products.map((product) => ({
       id: product.id,
@@ -185,6 +193,7 @@ export async function GET(request: Request) {
 
       isPlaceholder: product.isPlaceholder,
       isSourceVerified: product.isSourceVerified,
+      stockStatus: stockedProductIds.has(product.id) ? "IN_STOCK" : "OUT_OF_STOCK",
 
       category: product.category,
 
