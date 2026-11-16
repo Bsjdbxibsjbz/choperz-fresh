@@ -228,11 +228,9 @@ export async function POST(request: Request) {
             entityId: current.id,
             before: {
               onHandGrams: current.onHandGrams,
-              reservedGrams: current.reservedGrams,
             },
             after: {
               onHandGrams: updated.onHandGrams,
-              reservedGrams: updated.reservedGrams,
               gramsDelta,
               movementType: type,
               note,
@@ -253,7 +251,6 @@ export async function POST(request: Request) {
               slug: current.product.slug,
             },
             onHandGrams: updated.onHandGrams,
-            reservedGrams: updated.reservedGrams,
             availableGrams: updated.onHandGrams,
           },
         };
