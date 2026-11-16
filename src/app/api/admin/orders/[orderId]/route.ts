@@ -313,7 +313,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       for (const [productId, grams] of [...returns.entries()].sort(([a], [b]) => a.localeCompare(b))) {
         const restored = await tx.inventory.updateMany({
           where: { outletId: order.outletId, productId },
-          data: { onHandGrams: { increment: grams } },
+          data: { onHandGrams: { increment: grams }, reservedGrams: 0 },
         });
         if (restored.count !== 1) throw new Error("INVENTORY_RECORD_MISSING");
 
