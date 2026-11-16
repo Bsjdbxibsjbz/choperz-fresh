@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { requireSuperAdmin } from "@/lib/authorization";
+import { requireStaffPermissions } from "@/lib/authorization";
 import { Prisma } from "@/generated/prisma/client";
 
 const querySchema = z
@@ -71,7 +71,7 @@ function isValidCalendarDate(value: string): boolean {
 
 export async function GET(request: Request) {
   // 1. Super Admin access only.
-  const access = await requireSuperAdmin(["orders.read"]);
+  const access = await requireStaffPermissions(["orders.read"]);
 
   if (!access.authorized) {
     return NextResponse.json(
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     );
   }
 
-  // 2. Parse query parameters.
+  if (access.roleName === "OUTLET_MANAGER" && !access.outletId) {\n    return NextResponse.json({ error: "Your staff account is not assigned to an outlet." }, { status: 403 });\n  }\n\n  // 2. Parse query parameters.
   const url = new URL(request.url);
   const params = url.searchParams;
 
@@ -129,7 +129,7 @@ export async function GET(request: Request) {
   }
 
   // 3. Build the database filters.
-  const where: Prisma.OrderWhereInput = {
+  const where: Prisma.OrderWhereInput = {\n    ...(access.roleName === "OUTLET_MANAGER" ? { outletId: access.outletId! } : {}),
     ...(status ? { status } : {}),
 
     ...(paymentStatus ? { paymentStatus } : {}),
