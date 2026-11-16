@@ -23,8 +23,8 @@ const updateAddressSchema = z
       .trim()
       .regex(/^\d{6}$/, "Enter a valid 6-digit Indian pincode.")
       .optional(),
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
     isDefault: z.literal(true).optional(),
   })
   .strict()
@@ -43,17 +43,6 @@ const updateAddressSchema = z
       });
     }
 
-    if (
-      hasLatitude &&
-      hasLongitude &&
-      ((data.latitude === null) !== (data.longitude === null))
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Latitude and longitude must both be numbers or both be null.",
-        path: ["latitude"],
-      });
-    }
   });
 
 // PATCH: Edit an address or make it the customer's default address.
