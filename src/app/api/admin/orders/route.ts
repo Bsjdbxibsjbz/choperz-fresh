@@ -80,7 +80,11 @@ export async function GET(request: Request) {
     );
   }
 
-  if (access.roleName === "OUTLET_MANAGER" && !access.outletId) {\n    return NextResponse.json({ error: "Your staff account is not assigned to an outlet." }, { status: 403 });\n  }\n\n  // 2. Parse query parameters.
+  if (access.roleName === "OUTLET_MANAGER" && !access.outletId) {
+    return NextResponse.json({ error: "Your staff account is not assigned to an outlet." }, { status: 403 });
+  }
+
+  // 2. Parse query parameters.
   const url = new URL(request.url);
   const params = url.searchParams;
 
@@ -129,7 +133,8 @@ export async function GET(request: Request) {
   }
 
   // 3. Build the database filters.
-  const where: Prisma.OrderWhereInput = {\n    ...(access.roleName === "OUTLET_MANAGER" ? { outletId: access.outletId! } : {}),
+  const where: Prisma.OrderWhereInput = {
+    ...(access.roleName === "OUTLET_MANAGER" ? { outletId: access.outletId! } : {}),
     ...(status ? { status } : {}),
 
     ...(paymentStatus ? { paymentStatus } : {}),
