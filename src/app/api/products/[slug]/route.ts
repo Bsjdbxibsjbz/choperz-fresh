@@ -115,8 +115,15 @@ export async function GET(
       );
     }
 
+    const inventoryRows = await prisma.inventory.findMany({
+      where: { productId: product.id, outlet: { is: { isActive: true } } },
+      select: { onHandGrams: true },
+    });
+    const isInStock = inventoryRows.some((row) => row.onHandGrams > 0);
+
     const result = {
       id: product.id,
+      stockStatus: isInStock ? "IN_STOCK" : "OUT_OF_STOCK",
       slug: product.slug,
       name: product.name,
       localName: product.localName,
