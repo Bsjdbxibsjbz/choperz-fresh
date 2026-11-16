@@ -365,6 +365,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     return NextResponse.json({ success: true, message: "Order cancelled and inventory restored.", orderNumber: outcome.orderNumber, restoredProductCount: outcome.restoredProductCount });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVENTORY_RECORD_MISSING") {
+      return NextResponse.json({ success: false, error: "The order's inventory record is missing; cancellation was rolled back." }, { status: 409 });
+    }
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2034") {
       return NextResponse.json({ success: false, error: "The order changed during cancellation. Please retry." }, { status: 409 });
     }
