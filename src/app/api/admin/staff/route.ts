@@ -20,6 +20,7 @@ const createStaffSchema = z
       "OUTLET_MANAGER",
       "PRODUCT_MANAGER",
       "ORDER_MANAGER",
+      "DRIVER",
       "CONTENT_MANAGER",
     ]),
 
@@ -85,7 +86,8 @@ export async function POST(request: Request) {
     );
   }
 
-  // Central staff roles cannot receive outlet-specific assignments.
+  // Only Outlet Managers receive fixed outlet assignments.
+  // Drivers can be assigned deliveries from either outlet.
   if (roleName !== "OUTLET_MANAGER" && outletId) {
     return NextResponse.json(
       {
@@ -134,7 +136,6 @@ export async function POST(request: Request) {
       }
 
       // 7. Generate an internal placeholder email.
-      // Customers and staff never need to enter this email.
       const internalEmail =
         `${phoneNumber.replace(/\D/g, "")}@phone.choperz.invalid`;
 
@@ -172,7 +173,23 @@ export async function POST(request: Request) {
         },
       });
 
-      // 10. Record the administrative action.
+      // 10. Create a linked driver profile when applicable.
+      // New drivers start OFFLINE and must be activated by an admin.
+      const driverProfile =
+        roleName === "DRIVER"
+          ? await tx.driverProfile.create({
+              data: {
+                staffProfileId: staffProfile.id,
+                availability: "OFFLINE",
+              },
+              select: {
+                id: true,
+                availability: true,
+              },
+            })
+          : null;
+
+      // 11. Record the administrative action.
       await tx.auditLog.create({
         data: {
           actorId: access.userId,
@@ -184,6 +201,7 @@ export async function POST(request: Request) {
             roleName: role.name,
             outletId,
             isActive: true,
+            driverProfileId: driverProfile?.id ?? null,
           },
         },
       });
@@ -198,6 +216,12 @@ export async function POST(request: Request) {
         outletId: staffProfile.outletId,
         isActive: staffProfile.isActive,
         phoneNumberVerified: false,
+        driverProfile: driverProfile
+          ? {
+              id: driverProfile.id,
+              availability: driverProfile.availability,
+            }
+          : null,
       };
     });
 

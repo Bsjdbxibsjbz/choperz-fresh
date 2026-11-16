@@ -50,11 +50,25 @@ enum ReservationStatus {
   EXPIRED
 }
 
+enum DriverAvailability {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum DeliveryAssignmentStatus {
+  ACTIVE
+  REASSIGNED
+  COMPLETED
+  CANCELLED
+}
+
 enum OrderStatus {
   pending
   confirmed
   processing
   packed
+  picked_up
   out_for_delivery
   delivered
   cancelled
@@ -95,13 +109,14 @@ model User {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  sessions     Session[]
-  accounts     Account[]
-  profile      CustomerProfile?
-  addresses    Address[]
-  cart         Cart?
-  orders       Order[]
-  staffProfile StaffProfile?
+  sessions                Session[]
+  accounts                Account[]
+  profile                 CustomerProfile?
+  addresses               Address[]
+  cart                    Cart?
+  orders                  Order[]
+  staffProfile            StaffProfile?
+  deliveryAssignmentsMade DeliveryAssignment[] @relation("DeliveryAssignmentAssignedBy")
 
   @@unique([phoneNumber])
   @@map("users")
@@ -533,8 +548,8 @@ model Order {
   orderNumber   String        @unique
   userId        String
   user          User          @relation(fields: [userId], references: [id])
-  outletId      String
-  outlet        Outlet        @relation(fields: [outletId], references: [id])
+  outletId      String?
+  outlet        Outlet?       @relation(fields: [outletId], references: [id], onDelete: SetNull)
   status        OrderStatus   @default(pending)
   paymentStatus PaymentStatus @default(UNPAID)
   paymentMethod PaymentMethod
@@ -559,10 +574,11 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items        OrderItem[]
-  history      OrderStatusHistory[]
-  payments     Payment[]
-  reservations StockReservation[]
+  items               OrderItem[]
+  history             OrderStatusHistory[]
+  payments            Payment[]
+  reservations        StockReservation[]
+  deliveryAssignments DeliveryAssignment[]
 
   @@index([userId, createdAt])
   @@index([outletId, status])
@@ -684,14 +700,15 @@ model RolePermission {
 }
 
 model StaffProfile {
-  id       String  @id @default(cuid())
-  userId   String  @unique
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roleId   String
-  role     Role    @relation(fields: [roleId], references: [id])
-  outletId String?
-  outlet   Outlet? @relation(fields: [outletId], references: [id])
-  isActive Boolean @default(true)
+  id            String         @id @default(cuid())
+  userId        String         @unique
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId        String
+  role          Role           @relation(fields: [roleId], references: [id])
+  outletId      String?
+  outlet        Outlet?        @relation(fields: [outletId], references: [id])
+  isActive      Boolean        @default(true)
+  driverProfile DriverProfile?
 
   @@map("staff_profiles")
 }
@@ -718,4 +735,50 @@ model SiteSetting {
   updatedAt DateTime @updatedAt
 
   @@map("site_settings")
+}
+
+// ───────────── DRIVER PROFILES ─────────────
+
+model DriverProfile {
+  id             String       @id @default(cuid())
+  staffProfileId String       @unique
+  staffProfile   StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Restrict)
+
+  availability DriverAvailability @default(OFFLINE)
+
+  assignments DeliveryAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("driver_profiles")
+}
+
+// ───────────── DELIVERY ASSIGNMENT HISTORY ─────────────
+
+model DeliveryAssignment {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  driverProfileId String
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Restrict)
+
+  assignedById String
+  assignedBy   User   @relation("DeliveryAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  status DeliveryAssignmentStatus @default(ACTIVE)
+
+  assignedAt  DateTime  @default(now())
+  completedAt DateTime?
+  note        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId, status])
+  @@index([driverProfileId, status])
+  @@index([assignedById, assignedAt])
+  @@map("delivery_assignments")
 }

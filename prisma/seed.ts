@@ -34,6 +34,8 @@ const PERMISSIONS = [
   "content.write",
   "outlets.write",
   "zones.write",
+  "delivery.read_assigned",
+  "delivery.update_assigned_status",
   "staff.manage",
   "roles.manage",
   "reports.read",
@@ -92,6 +94,13 @@ const ROLES: Record<
       "orders.read",
       "orders.update_status",
       "products.read",
+    ],
+  },
+    DRIVER: {
+    description: "Delivery driver; access only to assigned deliveries",
+    permissions: [
+      "delivery.read_assigned",
+      "delivery.update_assigned_status",
     ],
   },
 
