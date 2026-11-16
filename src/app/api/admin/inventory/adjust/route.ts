@@ -185,7 +185,7 @@ export async function POST(request: Request) {
               "updatedAt" = NOW()
             WHERE
               "id" = ${current.id}
-              AND "onHandGrams" - "reservedGrams" >= ${Math.abs(gramsDelta)}
+              AND "onHandGrams" >= ${Math.abs(gramsDelta)}
           `;
         } else {
           affectedRows = await tx.$executeRaw`
@@ -253,8 +253,7 @@ export async function POST(request: Request) {
             },
             onHandGrams: updated.onHandGrams,
             reservedGrams: updated.reservedGrams,
-            availableGrams:
-              updated.onHandGrams - updated.reservedGrams,
+            availableGrams: updated.onHandGrams,
           },
         };
       }
@@ -296,7 +295,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error:
-            "Insufficient unreserved stock for this adjustment.",
+            "Insufficient stock for this adjustment.",
         },
         { status: 409 }
       );
