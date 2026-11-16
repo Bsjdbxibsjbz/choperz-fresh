@@ -371,7 +371,7 @@ export async function POST(request: Request) {
               productId,
               onHandGrams: { gte: requirement.grams },
             },
-            data: { onHandGrams: { decrement: requirement.grams } },
+            data: { onHandGrams: { decrement: requirement.grams }, reservedGrams: 0 },
           });
 
           if (changed.count !== 1) {
