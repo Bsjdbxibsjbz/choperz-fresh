@@ -177,7 +177,7 @@ export async function POST(request: Request) {
         let affectedRows: number;
 
         if (gramsDelta < 0) {
-          // Atomic guard: don't reduce stock below reserved quantity.
+          // Atomic stock guard. Reservations are not used; keep the legacy field at zero.
           affectedRows = await tx.$executeRaw`
             UPDATE "inventory"
             SET
@@ -192,6 +192,7 @@ export async function POST(request: Request) {
             UPDATE "inventory"
             SET
               "onHandGrams" = "onHandGrams" + ${gramsDelta},
+              "reservedGrams" = 0,
               "updatedAt" = NOW()
             WHERE "id" = ${current.id}
           `;
