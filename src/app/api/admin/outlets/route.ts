@@ -25,24 +25,13 @@ const createOutletSchema = z
       .nullable()
       .optional(),
 
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
     maxRadiusKm: z.number().positive().max(1000).nullable().optional(),
     isActive: z.boolean().default(true),
   })
   .strict()
-  .superRefine((data, ctx) => {
-    const hasLatitude = data.latitude != null;
-    const hasLongitude = data.longitude != null;
-
-    if (hasLatitude !== hasLongitude) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Latitude and longitude must both be provided.",
-        path: ["latitude"],
-      });
-    }
-  });
+;
 
 async function requireSuperAdmin() {
   const access = await requireStaffPermissions(["outlets.write"]);
@@ -160,8 +149,8 @@ export async function POST(request: Request) {
           addressLine: data.addressLine ?? null,
           city: data.city,
           pincode: data.pincode ?? null,
-          latitude: data.latitude ?? null,
-          longitude: data.longitude ?? null,
+          latitude: data.latitude,
+          longitude: data.longitude,
           maxRadiusKm: data.maxRadiusKm ?? null,
           isActive: data.isActive,
         },
