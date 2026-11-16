@@ -443,6 +443,22 @@ export async function POST(request: Request) {
           status: 400,
           message: "The saved delivery pincode is invalid.",
         },
+        ADDRESS_LOCATION_REQUIRED: {
+          status: 422,
+          message: "Add GPS coordinates to this address before checkout.",
+        },
+        OUTLET_LOCATION_NOT_CONFIGURED: {
+          status: 503,
+          message: "Delivery is temporarily unavailable because outlet GPS locations are not configured.",
+        },
+        INVALID_STOCK_QUANTITY: {
+          status: 400,
+          message: "The requested stock quantity is invalid.",
+        },
+        INSUFFICIENT_STOCK: {
+          status: 409,
+          message: "One or more items do not have enough stock at the nearest outlet. Please update your cart or try again later.",
+        },
         CART_EMPTY: {
           status: 400,
           message: "Your cart is empty.",
@@ -467,7 +483,7 @@ export async function POST(request: Request) {
         DELIVERY_NOT_AVAILABLE: {
           status: 422,
           message:
-            "Delivery is not currently available for this pincode.",
+            "No eligible outlet can deliver to this address.",
         },
         COD_DISABLED: {
           status: 409,
