@@ -1,9 +1,8 @@
-
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { requireStaffPermissions } from "@/lib/authorization";
+import { requireStaffPermissions, requireSuperAdmin } from "@/lib/authorization";
 
 type RouteContext = {
   params: Promise<{
