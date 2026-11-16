@@ -117,7 +117,6 @@ export async function GET(request: Request) {
         select: {
           id: true,
           onHandGrams: true,
-          reservedGrams: true,
           updatedAt: true,
 
           outlet: {
@@ -146,8 +145,7 @@ export async function GET(request: Request) {
 
     // 7. Calculate available stock.
     const records = inventory.map((item) => {
-      const availableGrams =
-        item.onHandGrams - item.reservedGrams;
+      const availableGrams = item.onHandGrams;
 
       return {
         id: item.id,
@@ -158,13 +156,11 @@ export async function GET(request: Request) {
 
         stock: {
           onHandGrams: item.onHandGrams,
-          reservedGrams: item.reservedGrams,
           availableGrams,
 
           // This is an alert, not a stock adjustment.
           hasStockIssue:
             item.onHandGrams < 0 ||
-            item.reservedGrams < 0 ||
             availableGrams < 0,
         },
 
