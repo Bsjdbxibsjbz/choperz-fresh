@@ -374,10 +374,14 @@ model Outlet {
 }
 
 model OutletDeliveryZone {
-  id               String @id @default(cuid())
-  outletId         String
-  outlet           Outlet @relation(fields: [outletId], references: [id], onDelete: Cascade)
-  pincode          String
+  id       String  @id @default(cuid())
+  outletId String
+  outlet   Outlet  @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  pincode  String
+  isActive Boolean @default(true)
+
+  // Legacy field retained for database compatibility.
+  // CHOPERZ FRESH delivery is free; this field is not used.
   deliveryFeePaise Int?
 
   @@unique([outletId, pincode])
