@@ -25,7 +25,11 @@ export async function GET(
     );
   }
 
-  if (access.roleName === "OUTLET_MANAGER" && !access.outletId) {\n    return NextResponse.json({ error: "Your staff account is not assigned to an outlet." }, { status: 403 });\n  }\n\n  const { orderId } = await params;
+  if (access.roleName === "OUTLET_MANAGER" && !access.outletId) {
+    return NextResponse.json({ error: "Your staff account is not assigned to an outlet." }, { status: 403 });
+  }
+
+  const { orderId } = await params;
 
   if (!orderId || orderId.length > 100) {
     return NextResponse.json(
@@ -36,9 +40,10 @@ export async function GET(
 
   try {
     // 2. Retrieve the complete order.
-    const order = await prisma.order.findUnique({
+    const order = await prisma.order.findFirst({
       where: {
         id: orderId,
+        ...(access.roleName === "OUTLET_MANAGER" ? { outletId: access.outletId! } : {}),
       },
 
       select: {
