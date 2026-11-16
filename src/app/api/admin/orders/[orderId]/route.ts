@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { requireSuperAdmin } from "@/lib/authorization";
+import { requireStaffPermissions } from "@/lib/authorization";
 
 type RouteContext = {
   params: Promise<{
@@ -16,7 +16,7 @@ export async function GET(
   { params }: RouteContext
 ) {
   // 1. Super Admin access only.
-  const access = await requireSuperAdmin(["orders.read"]);
+  const access = await requireStaffPermissions(["orders.read"]);
 
   if (!access.authorized) {
     return NextResponse.json(
@@ -25,7 +25,7 @@ export async function GET(
     );
   }
 
-  const { orderId } = await params;
+  if (access.roleName === "OUTLET_MANAGER" && !access.outletId) {\n    return NextResponse.json({ error: "Your staff account is not assigned to an outlet." }, { status: 403 });\n  }\n\n  const { orderId } = await params;
 
   if (!orderId || orderId.length > 100) {
     return NextResponse.json(
