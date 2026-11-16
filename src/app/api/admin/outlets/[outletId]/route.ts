@@ -15,8 +15,8 @@ const updateOutletSchema = z
     addressLine: z.string().trim().max(250).nullable().optional(),
     city: z.string().trim().min(2).max(80).nullable().optional(),
     pincode: z.string().regex(/^\d{6}$/).nullable().optional(),
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
     maxRadiusKm: z.number().positive().max(1000).nullable().optional(),
     isActive: z.boolean().optional(),
   })
@@ -36,17 +36,6 @@ const updateOutletSchema = z
       });
     }
 
-    if (
-      hasLatitude &&
-      hasLongitude &&
-      ((data.latitude === null) !== (data.longitude === null))
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Latitude and longitude must both be numbers or both be null.",
-        path: ["latitude"],
-      });
-    }
   });
 
 export async function PATCH(
