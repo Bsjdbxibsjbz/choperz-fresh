@@ -83,7 +83,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       });
       if (!order) throw new Error("ORDER_NOT_FOUND");
 
-      if (access.roleName !== "SUPER_ADMIN" && access.outletId !== order.outletId) {
+      if (access.roleName !== "SUPER_ADMIN" && access.roleName !== "ORDER_MANAGER" && access.outletId !== order.outletId) {
         throw new Error("ORDER_OUTLET_FORBIDDEN");
       }
       if (!order.outletId) throw new Error("ORDER_OUTLET_REQUIRED");
