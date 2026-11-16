@@ -208,6 +208,7 @@ export async function POST(request: Request) {
             onHandGrams: {
               increment: allocation.grams,
             },
+            reservedGrams: 0,
           },
         });
 
