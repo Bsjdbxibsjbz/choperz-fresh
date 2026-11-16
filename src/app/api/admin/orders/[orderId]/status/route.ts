@@ -63,9 +63,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const locked = await tx.$queryRaw<{ id: string }[]>\`
+      const locked = await tx.$queryRaw<{ id: string }[]>`
         SELECT "id" FROM "orders" WHERE "id" = ${orderId} FOR UPDATE
-      \`;
+      `;
       if (locked.length === 0) throw new Error("ORDER_NOT_FOUND");
 
       const order = await tx.order.findUnique({
