@@ -24,6 +24,17 @@ function isErrorCode(error: unknown, code: string): boolean {
   );
 }
 
+
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const radians = (degrees: number) => (degrees * Math.PI) / 180;
+  const earthRadiusKm = 6371.0088;
+  const dLat = radians(lat2 - lat1);
+  const dLon = radians(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export async function POST(request: Request) {
   // 1. Require a verified customer account.
   const access = await requireCustomer();
@@ -117,6 +128,10 @@ export async function POST(request: Request) {
 
         if (!address) {
           throw new Error("ADDRESS_NOT_FOUND");
+        }
+
+        if (address.latitude === null || address.longitude === null) {
+          throw new Error("ADDRESS_LOCATION_REQUIRED");
         }
 
         if (!/^\d{6}$/.test(address.pincode)) {
@@ -228,67 +243,77 @@ export async function POST(request: Request) {
           throw new Error("INVALID_ORDER_TOTAL");
         }
 
-        // 8. Verify delivery serviceability.
-        // A customer may place an order only if at least one
-        // active outlet serves the saved pincode.
-        const activeZone =
-          await tx.outletDeliveryZone.findFirst({
-            where: {
-              pincode: address.pincode,
-              isActive: true,
-              outlet: {
-                is: {
-                  isActive: true,
-                },
-              },
-            },
-            select: {
-              id: true,
-            },
-          });
 
-        if (!activeZone) {
-          throw new Error("DELIVERY_NOT_AVAILABLE");
-        }
-
-        // 9. Cash on Delivery is controlled by the admin setting.
-        const codSetting = await tx.siteSetting.findUnique({
+        // Pincode zones establish serviceability; GPS selects the nearest eligible outlet.
+        const serviceableOutlets = await tx.outlet.findMany({
           where: {
-            key: "cod_enabled",
+            isActive: true,
+            zones: { some: { pincode: address.pincode, isActive: true } },
           },
           select: {
-            value: true,
+            id: true,
+            code: true,
+            name: true,
+            latitude: true,
+            longitude: true,
+            maxRadiusKm: true,
           },
         });
 
+        if (serviceableOutlets.length === 0) {
+          throw new Error("DELIVERY_NOT_AVAILABLE");
+        }
+
+        const locatedOutlets = serviceableOutlets
+          .filter((outlet) => outlet.latitude !== null && outlet.longitude !== null)
+          .map((outlet) => ({
+            ...outlet,
+            distanceKm: distanceKm(
+              address.latitude as number,
+              address.longitude as number,
+              outlet.latitude as number,
+              outlet.longitude as number
+            ),
+          }))
+          .filter((outlet) => outlet.maxRadiusKm === null || outlet.distanceKm <= outlet.maxRadiusKm)
+          .sort((a, b) => a.distanceKm - b.distanceKm);
+
+        if (locatedOutlets.length === 0) {
+          if (serviceableOutlets.every((outlet) => outlet.latitude === null || outlet.longitude === null)) {
+            throw new Error("OUTLET_LOCATION_NOT_CONFIGURED");
+          }
+          throw new Error("DELIVERY_NOT_AVAILABLE");
+        }
+
+        const selectedOutlet = locatedOutlets[0];
+
+        // Cash on Delivery is controlled by the admin setting.
+        const codSetting = await tx.siteSetting.findUnique({
+          where: { key: "cod_enabled" },
+          select: { value: true },
+        });
         if (codSetting?.value !== true) {
           throw new Error("COD_DISABLED");
         }
 
-        // 10. Create the order number.
         const orderNumber =
-          `CF-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomUUID()
-            .replace(/-/g, "")
-            .slice(0, 10)
-            .toUpperCase()}`;
+          "CF-" +
+          new Date().toISOString().slice(0, 10).replace(/-/g, "") +
+          "-" +
+          randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
 
-        // 11. Create the order and historical item snapshots.
-        // No outlet is assigned and no stock is reserved here.
         const order = await tx.order.create({
           data: {
             orderNumber,
             userId: user.id,
-            outletId: null,
-
+            outletId: selectedOutlet.id,
             status: "pending",
             paymentStatus: "UNPAID",
             paymentMethod: "COD",
-
             subtotalPaise,
             deliveryFeePaise: 0,
             discountPaise: 0,
             totalPaise: subtotalPaise,
-
             shipName: user.name,
             shipPhone: user.phoneNumber,
             shipLine1: address.line1,
@@ -298,26 +323,21 @@ export async function POST(request: Request) {
             shipPincode: address.pincode,
             shipLatitude: address.latitude,
             shipLongitude: address.longitude,
-
             notes: notes || null,
-
-            items: {
-              create: orderItems,
-            },
-
+            items: { create: orderItems },
             history: {
               create: {
                 fromStatus: null,
                 toStatus: "pending",
                 actorId: user.id,
-                note:
-                  "Order placed by customer. Awaiting outlet confirmation.",
+                note: "Order placed and assigned to nearest eligible outlet: " + selectedOutlet.code + ".",
               },
             },
           },
           select: {
             id: true,
             orderNumber: true,
+            outletId: true,
             status: true,
             paymentStatus: true,
             paymentMethod: true,
@@ -329,6 +349,48 @@ export async function POST(request: Request) {
           },
         });
 
+        // Inventory is tracked in grams per product/outlet. Aggregate package variants by product.
+        const requirements = new Map<string, { grams: number; productName: string }>();
+        for (const item of orderItems) {
+          const current = requirements.get(item.productId) ?? {
+            grams: 0,
+            productName: item.productName,
+          };
+          current.grams += item.weightGrams * item.quantity;
+          if (!Number.isSafeInteger(current.grams)) {
+            throw new Error("INVALID_STOCK_QUANTITY");
+          }
+          requirements.set(item.productId, current);
+        }
+
+        // Deduct stock immediately using conditional atomic updates. No reservations are created.
+        for (const [productId, requirement] of [...requirements.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+          const changed = await tx.inventory.updateMany({
+            where: {
+              outletId: selectedOutlet.id,
+              productId,
+              onHandGrams: { gte: requirement.grams },
+            },
+            data: { onHandGrams: { decrement: requirement.grams } },
+          });
+
+          if (changed.count !== 1) {
+            throw new Error("INSUFFICIENT_STOCK");
+          }
+
+          await tx.stockMovement.create({
+            data: {
+              outletId: selectedOutlet.id,
+              productId,
+              type: "SALE_DEDUCT",
+              gramsDelta: -requirement.grams,
+              orderId: order.id,
+              actorId: user.id,
+              note: "Stock deducted for order " + order.orderNumber + ".",
+            },
+          });
+        }
+
         // 12. Clear the cart only after successful order creation.
         await tx.cartItem.deleteMany({
           where: {
@@ -336,7 +398,15 @@ export async function POST(request: Request) {
           },
         });
 
-        return order;
+        return {
+          ...order,
+          outlet: {
+            id: selectedOutlet.id,
+            code: selectedOutlet.code,
+            name: selectedOutlet.name,
+            distanceKm: Number(selectedOutlet.distanceKm.toFixed(2)),
+          },
+        };
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -347,12 +417,10 @@ export async function POST(request: Request) {
       {
         success: true,
         message:
-          "Order received. Outlet confirmation is pending.",
+          "Order placed and assigned to the nearest eligible outlet.",
         order: {
           ...result,
-          outletId: null,
           deliveryFeePaise: 0,
-          stockReserved: false,
         },
       },
       { status: 201 }
