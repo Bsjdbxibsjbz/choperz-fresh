@@ -182,6 +182,7 @@ export async function POST(request: Request) {
             UPDATE "inventory"
             SET
               "onHandGrams" = "onHandGrams" + ${gramsDelta},
+              "reservedGrams" = 0,
               "updatedAt" = NOW()
             WHERE
               "id" = ${current.id}
