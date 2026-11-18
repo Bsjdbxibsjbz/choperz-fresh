@@ -4,7 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireCustomer } from "@/lib/customer-authorization";
-
+import { releaseDrivers } from "@/lib/order-lifecycle";
 type RouteContext = {
   params: Promise<{ orderId: string }>;
 };
@@ -47,7 +47,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         notes: true,
         createdAt: true,
         updatedAt: true,
-        outlet: { select: { id: true, code: true, name: true } },
+        outlet: { select: { name: true } },
         items: {
           orderBy: { productName: "asc" },
           select: {
@@ -64,7 +64,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
         },
         history: {
           orderBy: { createdAt: "asc" },
-          select: { fromStatus: true, toStatus: true, note: true, createdAt: true },
+          // Staff notes are internal and never shown to customers.
+          select: { fromStatus: true, toStatus: true, createdAt: true },
         },
       },
     });
@@ -119,7 +120,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       if (order.status === "cancelled") return { alreadyCancelled: true, orderNumber: order.orderNumber };
       if (order.status !== "pending") throw new Error("CUSTOMER_CANCELLATION_CLOSED");
       if (!order.outletId) throw new Error("ORDER_OUTLET_MISSING");
-      if (order.paymentStatus === "PAID" || order.paymentStatus === "PARTIALLY_REFUNDED") {
+      if (order.paymentStatus !== "UNPAID" && order.paymentStatus !== "FAILED") {
         throw new Error("PAYMENT_REFUND_REQUIRED");
       }
 
@@ -136,7 +137,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       for (const [productId, item] of [...returns.entries()].sort(([a], [b]) => a.localeCompare(b))) {
         const restored = await tx.inventory.updateMany({
           where: { outletId: order.outletId, productId },
-          data: { onHandGrams: { increment: item.grams }, reservedGrams: 0 },
+          data: {
+           onHandGrams: { increment: item.grams },
+           reservedGrams: 0,
+          },
         });
         if (restored.count !== 1) throw new Error("INVENTORY_RECORD_MISSING");
 
@@ -158,17 +162,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           where: { id: { in: order.deliveryAssignments.map((assignment) => assignment.id) } },
           data: { status: "CANCELLED", completedAt: new Date(), note: parsed.data.reason ?? "Order cancelled by customer." },
         });
-        for (const driverProfileId of [...new Set(order.deliveryAssignments.map((assignment) => assignment.driverProfileId))]) {
-          const activeCount = await tx.deliveryAssignment.count({
-            where: { driverProfileId, status: "ACTIVE" },
-          });
-          if (activeCount === 0) {
-            await tx.driverProfile.update({
-              where: { id: driverProfileId },
-              data: { availability: "AVAILABLE" },
-            });
-          }
-        }
+        await releaseDrivers(
+          tx,
+          order.deliveryAssignments.map((assignment) => assignment.driverProfileId)
+        );
       }
 
       await tx.order.update({ where: { id: order.id }, data: { status: "cancelled" } });
@@ -208,7 +205,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         ORDER_NOT_FOUND: { status: 404, message: "Order not found." },
         CUSTOMER_CANCELLATION_CLOSED: { status: 409, message: "This order can no longer be cancelled online. Please contact support." },
         ORDER_OUTLET_MISSING: { status: 409, message: "This order cannot be cancelled automatically because it has no assigned outlet." },
-        PAYMENT_REFUND_REQUIRED: { status: 409, message: "This paid order requires a refund workflow. Please contact support." },
+        PAYMENT_REFUND_REQUIRED: { status: 409, message: "This order requires payment reconciliation before cancellation. Please contact support." },
         INVALID_RETURN_QUANTITY: { status: 409, message: "The order contains an invalid stock quantity." },
         INVENTORY_RECORD_MISSING: { status: 409, message: "The inventory record is missing; cancellation was rolled back." },
       };

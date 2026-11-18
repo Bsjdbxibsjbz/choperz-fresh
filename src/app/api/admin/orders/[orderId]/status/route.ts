@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireStaffPermissions } from "@/lib/authorization";
+import { releaseDrivers } from "@/lib/order-lifecycle";
 
 const updateStatusSchema = z.object({
   status: z.enum([
@@ -75,6 +76,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           orderNumber: true,
           status: true,
           outletId: true,
+          paymentMethod: true,
+          paymentStatus: true,
           deliveryAssignments: {
             where: { status: "ACTIVE" },
             select: { id: true, driverProfileId: true },
@@ -83,7 +86,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       });
       if (!order) throw new Error("ORDER_NOT_FOUND");
 
-      if (access.roleName !== "SUPER_ADMIN" && access.roleName !== "ORDER_MANAGER" && access.outletId !== order.outletId) {
+      // Super Admin may process any outlet; every other staff role is outlet-scoped.
+      if (access.roleName !== "SUPER_ADMIN" && (!access.outletId || access.outletId !== order.outletId)) {
         throw new Error("ORDER_OUTLET_FORBIDDEN");
       }
       if (!order.outletId) throw new Error("ORDER_OUTLET_REQUIRED");
@@ -93,9 +97,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         throw new Error("INVALID_STATUS_TRANSITION");
       }
 
-      if (nextStatus === "out_for_delivery" && order.deliveryAssignments.length === 0) {
+      // Pickup and dispatch both need a driver on the order.
+      if (
+        (nextStatus === "picked_up" || nextStatus === "out_for_delivery") &&
+        order.deliveryAssignments.length === 0
+      ) {
         throw new Error("DRIVER_ASSIGNMENT_REQUIRED");
       }
+
+      // Delivery status is not proof of cash collection. COD settlement must be
+      // recorded through a separate, auditable payment-collection action.
+      const paymentStatus = order.paymentStatus;
 
       await tx.order.update({
         where: { id: order.id },
@@ -113,33 +125,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           },
         });
 
-        for (const driverProfileId of [...new Set(activeAssignments.map((assignment) => assignment.driverProfileId))]) {
-          const remaining = await tx.deliveryAssignment.count({
-            where: { driverProfileId, status: "ACTIVE" },
-          });
-          if (remaining === 0) {
-            const driver = await tx.driverProfile.findUnique({
-              where: { id: driverProfileId },
-              select: {
-                staffProfile: {
-                  select: {
-                    isActive: true,
-                    user: { select: { phoneNumberVerified: true } },
-                  },
-                },
-              },
-            });
-            await tx.driverProfile.update({
-              where: { id: driverProfileId },
-              data: {
-                availability:
-                  driver?.staffProfile.isActive && driver.staffProfile.user.phoneNumberVerified
-                    ? "AVAILABLE"
-                    : "OFFLINE",
-              },
-            });
-          }
-        }
+        await releaseDrivers(
+          tx,
+          activeAssignments.map((assignment) => assignment.driverProfileId)
+        );
       }
 
       await tx.orderStatusHistory.create({
@@ -158,12 +147,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           action: "ORDER_STATUS_UPDATED",
           entity: "Order",
           entityId: order.id,
-          before: { status: order.status },
-          after: { status: nextStatus, orderNumber: order.orderNumber },
+          before: { status: order.status, paymentStatus: order.paymentStatus },
+          after: { status: nextStatus, paymentStatus, orderNumber: order.orderNumber },
         },
       });
 
-      return { orderNumber: order.orderNumber, fromStatus: order.status, status: nextStatus };
+      return {
+        orderNumber: order.orderNumber,
+        fromStatus: order.status,
+        status: nextStatus,
+        paymentStatus,
+      };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     return NextResponse.json({ success: true, message: "Order status updated.", order: result });
@@ -174,7 +168,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         ORDER_OUTLET_FORBIDDEN: { status: 403, message: "You can only process orders assigned to your outlet." },
         ORDER_OUTLET_REQUIRED: { status: 409, message: "An outlet must be assigned before processing this order." },
         INVALID_STATUS_TRANSITION: { status: 409, message: "This order cannot move to the requested status from its current status." },
-        DRIVER_ASSIGNMENT_REQUIRED: { status: 409, message: "Assign an available driver before moving this order out for delivery." },
+        DRIVER_ASSIGNMENT_REQUIRED: { status: 409, message: "Assign a driver before this order is picked up or sent out for delivery." },
       };
       const known = errors[error.message];
       if (known) return NextResponse.json({ success: false, error: known.message }, { status: known.status });

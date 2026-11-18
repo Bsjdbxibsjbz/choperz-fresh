@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { requireStaffPermissions, requireSuperAdmin } from "@/lib/authorization";
+import { releaseDrivers } from "@/lib/order-lifecycle";
 
 type RouteContext = {
   params: Promise<{
@@ -14,7 +15,7 @@ export async function GET(
   _request: Request,
   { params }: RouteContext
 ) {
-  // 1. Super Admin access only.
+  // 1. Staff with orders.read permission; non-super-admin roles are outlet-scoped.
   const access = await requireStaffPermissions(["orders.read"]);
 
   if (!access.authorized) {
@@ -24,7 +25,7 @@ export async function GET(
     );
   }
 
-  if (access.roleName === "OUTLET_MANAGER" && !access.outletId) {
+  if (access.roleName !== "SUPER_ADMIN" && !access.outletId) {
     return NextResponse.json({ error: "Your staff account is not assigned to an outlet." }, { status: 403 });
   }
 
@@ -42,7 +43,7 @@ export async function GET(
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
-        ...(access.roleName === "OUTLET_MANAGER" ? { outletId: access.outletId! } : {}),
+        ...(access.roleName !== "SUPER_ADMIN" ? { outletId: access.outletId! } : {}),
       },
 
       select: {
@@ -295,7 +296,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       );
       if (locked.length === 0) return { kind: "NOT_FOUND" as const };
       if (locked[0].status === "cancelled") return { kind: "ALREADY_CANCELLED" as const };
-      if (locked[0].status === "delivered") return { kind: "ALREADY_DELIVERED" as const };
+      if (!["pending", "confirmed", "processing", "packed"].includes(locked[0].status)) {
+        return { kind: "CANCELLATION_CLOSED" as const };
+      }
 
       const order = await tx.order.findUnique({
         where: { id: orderId },
@@ -306,6 +309,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       });
       if (!order) return { kind: "NOT_FOUND" as const };
       if (!order.outletId) return { kind: "OUTLET_MISSING" as const };
+      if (order.paymentStatus !== "UNPAID" && order.paymentStatus !== "FAILED") {
+        return { kind: "PAYMENT_REFUND_REQUIRED" as const };
+      }
+
+
 
       const returns = new Map<string, number>();
       for (const item of order.items) {
@@ -317,7 +325,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       for (const [productId, grams] of [...returns.entries()].sort(([a], [b]) => a.localeCompare(b))) {
         const restored = await tx.inventory.updateMany({
           where: { outletId: order.outletId, productId },
-          data: { onHandGrams: { increment: grams }, reservedGrams: 0 },
+          data: {
+          onHandGrams: { increment: grams },
+          reservedGrams: 0,
+          },
         });
         if (restored.count !== 1) throw new Error("INVENTORY_RECORD_MISSING");
 
@@ -339,10 +350,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           where: { id: { in: order.deliveryAssignments.map((a) => a.id) } },
           data: { status: "CANCELLED", completedAt: new Date(), note: parsed.data.reason ?? "Order cancelled by Super Admin." },
         });
-        for (const driverId of [...new Set(order.deliveryAssignments.map((a) => a.driverProfileId))]) {
-          const activeCount = await tx.deliveryAssignment.count({ where: { driverProfileId: driverId, status: "ACTIVE" } });
-          if (activeCount === 0) await tx.driverProfile.update({ where: { id: driverId }, data: { availability: "AVAILABLE" } });
-        }
+        await releaseDrivers(tx, order.deliveryAssignments.map((a) => a.driverProfileId));
       }
 
       await tx.order.update({ where: { id: order.id }, data: { status: "cancelled" } });
@@ -363,12 +371,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }, { isolationLevel: "Serializable" });
 
     if (outcome.kind === "NOT_FOUND") return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
-    if (outcome.kind === "ALREADY_DELIVERED") return NextResponse.json({ success: false, error: "A delivered order cannot be cancelled." }, { status: 409 });
+    if (outcome.kind === "CANCELLATION_CLOSED") return NextResponse.json({ success: false, error: "This order can no longer be cancelled automatically after driver pickup. Use the return workflow instead." }, { status: 409 });
+    if (outcome.kind === "PAYMENT_REFUND_REQUIRED") return NextResponse.json({ success: false, error: "This order requires payment reconciliation before cancellation." }, { status: 409 });
     if (outcome.kind === "OUTLET_MISSING") return NextResponse.json({ success: false, error: "The order has no assigned outlet; stock cannot be restored safely." }, { status: 409 });
     if (outcome.kind === "ALREADY_CANCELLED") return NextResponse.json({ success: true, message: "Order was already cancelled; inventory was not restored again.", alreadyCancelled: true });
 
     return NextResponse.json({ success: true, message: "Order cancelled and inventory restored.", orderNumber: outcome.orderNumber, restoredProductCount: outcome.restoredProductCount });
   } catch (error) {
+
     if (error instanceof Error && error.message === "INVENTORY_RECORD_MISSING") {
       return NextResponse.json({ success: false, error: "The order's inventory record is missing; cancellation was rolled back." }, { status: 409 });
     }
