@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeftRight, Boxes, ClipboardPlus, RefreshCw, SlidersHorizontal, Warehouse } from "lucide-react";
+import { ArrowLeftRight, RefreshCw } from "lucide-react";
 import { useAdminSession } from "../admin-shell";
 import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel, selectClass, StatusPill, textAreaClass } from "../admin-ui";
 
