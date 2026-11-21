@@ -2,12 +2,17 @@
 import "server-only";
 
 import { headers } from "next/headers";
+import { connection } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function requireStaffPermissions(
   requiredPermissions: string[]
 ) {
+  // This helper is used by authenticated Route Handlers.
+  // Defer request-specific authentication to request time with Cache Components.
+  await connection();
+
   // 1. Verify the current Better Auth session.
   const session = await auth.api.getSession({
     headers: await headers(),
