@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Plus, RefreshCw, Search, Boxes } from "lucide-react";
 import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel } from "../admin-ui";
 
@@ -18,7 +18,7 @@ export default function AdminSuppliersPage(){
  const [form,setForm]=useState({name:"",location:"",contact:""});
  async function load(){setLoading(true);setError("");try{const d=await api("/api/admin/suppliers");setSuppliers(d.suppliers||[]);}catch(e){setError(e instanceof Error?e.message:"Unable to load suppliers");}finally{setLoading(false);}}
  useEffect(()=>{void load();},[]);
- async function create(e:React.FormEvent){e.preventDefault();setSaving(true);setError("");setNotice("");try{await api("/api/admin/suppliers",{method:"POST",body:JSON.stringify({name:form.name,location:form.location||null,contact:form.contact||null})});setNotice("Supplier registered.");setForm({name:"",location:"",contact:""});setOpen(false);await load();}catch(e){setError(e instanceof Error?e.message:"Unable to register supplier");}finally{setSaving(false);}}
+ async function create(e:FormEvent){e.preventDefault();setSaving(true);setError("");setNotice("");try{await api("/api/admin/suppliers",{method:"POST",body:JSON.stringify({name:form.name,location:form.location||null,contact:form.contact||null})});setNotice("Supplier registered.");setForm({name:"",location:"",contact:""});setOpen(false);await load();}catch(e){setError(e instanceof Error?e.message:"Unable to register supplier");}finally{setSaving(false);}}
  const filtered=suppliers.filter(s=>(s.name+" "+(s.location||"")+" "+(s.contact||"")).toLowerCase().includes(search.toLowerCase()));
  return <div>
   <PageHeading eyebrow="PROCUREMENT" title="Suppliers" description="Maintain the supplier directory used for batch-level sourcing and traceability." action={<div className="flex gap-2"><ActionButton tone="secondary" onClick={()=>void load()}><RefreshCw size={14} className="mr-2"/>Refresh</ActionButton><ActionButton onClick={()=>setOpen(true)}><Plus size={14} className="mr-2"/>Add supplier</ActionButton></div>}/>
