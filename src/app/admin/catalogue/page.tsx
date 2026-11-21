@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Check, Edit3, Plus, RefreshCw, Search, X } from "lucide-react";
+import { Edit3, Plus, RefreshCw, Search, X } from "lucide-react";
 import { useAdminSession } from "../admin-shell";
 import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel, selectClass, StatusPill, textAreaClass } from "../admin-ui";
 
