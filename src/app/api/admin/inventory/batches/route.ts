@@ -1,5 +1,5 @@
 
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
@@ -25,6 +25,8 @@ const querySchema = z.object({
 });
 
 export async function GET(request: Request) {
+  await connection();
+
   try {
     // 1. Authenticate and check inventory access.
     const access = await requireStaffPermissions(["inventory.read"]);
