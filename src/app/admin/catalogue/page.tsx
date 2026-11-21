@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Check, Edit3, Plus, RefreshCw, Search, X } from "lucide-react";
 import { useAdminSession } from "../admin-shell";
 import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel, selectClass, StatusPill, textAreaClass } from "../admin-ui";
@@ -44,7 +44,7 @@ export default function AdminCataloguePage(){
  }
  useEffect(()=>{void load();},[category]);
  function openEdit(p:Product){setEditor(p);setForm({name:p.name,localName:p.localName||"",englishName:p.englishName||"",scientificName:p.scientificName||"",description:p.description||"",sourceInfo:p.sourceInfo||"",storageInstructions:p.storageInstructions||"",categoryId:p.category.id,isActive:p.isActive,isPlaceholder:p.isPlaceholder,isSourceVerified:p.isSourceVerified,variants:p.variants.map(v=>({...v,priceRupees:(v.pricePaise/100).toFixed(2)}))});}
- async function saveProduct(e:React.FormEvent){
+ async function saveProduct(e:FormEvent){
   e.preventDefault();if(!editor)return;setSaving(true);setError("");setNotice("");
   try{
    const body:any={name:form.name,localName:form.localName||null,englishName:form.englishName||null,scientificName:form.scientificName||null,description:form.description||null,sourceInfo:form.sourceInfo||null,storageInstructions:form.storageInstructions||null,isActive:form.isActive,isPlaceholder:form.isPlaceholder,isSourceVerified:form.isSourceVerified,categoryId:form.categoryId};
@@ -54,7 +54,7 @@ export default function AdminCataloguePage(){
   }catch(e){setError(e instanceof Error?e.message:"Unable to save product");}
   finally{setSaving(false);}
  }
- async function createProduct(e:React.FormEvent){
+ async function createProduct(e:FormEvent){
   e.preventDefault();setSaving(true);setError("");setNotice("");
   const weight=Number(newProduct.weightGrams),price=Number(newProduct.priceRupees);
   try{
