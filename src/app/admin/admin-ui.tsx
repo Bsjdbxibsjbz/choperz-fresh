@@ -1,6 +1,4 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight } from "lucide-react";
-
 export function PageHeading({ eyebrow = "OPERATIONS", title, description, action }: { eyebrow?: string; title: string; description: string; action?: ReactNode }) {
   return <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[10px] font-extrabold uppercase tracking-[.22em] text-[#168477]">{eyebrow}</p><h1 className="mt-2 font-[family-name:var(--font-manrope)] text-3xl font-extrabold tracking-[-.05em] text-[#102D38] sm:text-4xl">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[#6D7E78]">{description}</p></div>{action && <div className="shrink-0">{action}</div>}</div>;
 }
