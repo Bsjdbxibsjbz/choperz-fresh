@@ -27,14 +27,14 @@ export default function AdminInventoryPage(){
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const [search,setSearch]=useState("");
- const [outletFilter,setOutletFilter]=useState("");
+ const [outletFilter,setOutletFilter]=useState(outletId||"");
  const [productId,setProductId]=useState("");
  const [batchCode,setBatchCode]=useState("");
  const [supplierId,setSupplierId]=useState("");
  const [receivedGrams,setReceivedGrams]=useState("1000");
  const [costRupees,setCostRupees]=useState("");
  const [receiveOutlet,setReceiveOutlet]=useState("");
- const [adjustOutlet,setAdjustOutlet]=useState("");
+ const [adjustOutlet,setAdjustOutlet]=useState(outletId||"");
  const [adjustProduct,setAdjustProduct]=useState("");
  const [adjustDelta,setAdjustDelta]=useState("");
  const [adjustType,setAdjustType]=useState("ADJUSTMENT");
