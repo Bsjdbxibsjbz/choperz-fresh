@@ -422,7 +422,7 @@ export function ProductShowcase() {
         {!loading && error && (
           <div className="mt-10 rounded-2xl border border-[#D8E1DC] bg-[#F6F3EA] p-8 text-center">
             <p className="font-semibold text-[#102D38]">
-              We couldn't load the catalogue.
+              We couldn&apos;t load the catalogue.
             </p>
             <p className="mt-2 text-sm text-[#60717A]">{error}</p>
             <button

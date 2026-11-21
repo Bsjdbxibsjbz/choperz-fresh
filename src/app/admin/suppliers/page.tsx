@@ -17,7 +17,9 @@ export default function AdminSuppliersPage(){
  const [open,setOpen]=useState(false);
  const [editing,setEditing]=useState<Supplier|null>(null);
  const [form,setForm]=useState({name:"",location:"",contact:""});
- async function load(){setLoading(true);setError("");try{const d=await api("/api/admin/suppliers");setSuppliers(d.suppliers||[]);}catch(e){setError(e instanceof Error?e.message:"Unable to load suppliers");}finally{setLoading(false);}}
+ async function load(){try{const d=await api("/api/admin/suppliers");setSuppliers(d.suppliers||[]);}catch(e){setError(e instanceof Error?e.message:"Unable to load suppliers");}finally{setLoading(false);}}
+ // Initial async data loads update component state after their requests resolve.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  useEffect(()=>{void load();},[]);
  function openCreate(){setEditing(null);setForm({name:"",location:"",contact:""});setOpen(true);}
  function openEdit(s:Supplier){setEditing(s);setForm({name:s.name,location:s.location||"",contact:s.contact||""});setOpen(true);}
@@ -25,7 +27,7 @@ export default function AdminSuppliersPage(){
  async function save(e:FormEvent){e.preventDefault();setSaving(true);setError("");setNotice("");try{if(editing){await api("/api/admin/suppliers/"+editing.id,{method:"PATCH",body:JSON.stringify({name:form.name,location:form.location||null,contact:form.contact||null})});setNotice("Supplier details updated.");}else{await api("/api/admin/suppliers",{method:"POST",body:JSON.stringify({name:form.name,location:form.location||null,contact:form.contact||null})});setNotice("Supplier registered.");}setForm({name:"",location:"",contact:""});setOpen(false);setEditing(null);await load();}catch(e){setError(e instanceof Error?e.message:"Unable to save supplier");}finally{setSaving(false);}}
  const filtered=suppliers.filter(s=>(s.name+" "+(s.location||"")+" "+(s.contact||"")).toLowerCase().includes(search.toLowerCase()));
  return <div>
-  <PageHeading eyebrow="PROCUREMENT" title="Suppliers" description="Maintain the supplier directory used for batch-level sourcing and traceability." action={<div className="flex gap-2"><ActionButton tone="secondary" onClick={()=>void load()}><RefreshCw size={14} className="mr-2"/>Refresh</ActionButton><ActionButton onClick={openCreate}><Plus size={14} className="mr-2"/>Add supplier</ActionButton></div>}/>
+  <PageHeading eyebrow="PROCUREMENT" title="Suppliers" description="Maintain the supplier directory used for batch-level sourcing and traceability." action={<div className="flex gap-2"><ActionButton tone="secondary" onClick={()=>{setLoading(true);setError("");void load();}}><RefreshCw size={14} className="mr-2"/>Refresh</ActionButton><ActionButton onClick={openCreate}><Plus size={14} className="mr-2"/>Add supplier</ActionButton></div>}/>
   {error&&<div className="mb-4"><Notice kind="error">{error}</Notice></div>}{notice&&<div className="mb-4"><Notice kind="success">{notice}</Notice></div>}
   <div className="mb-5 grid gap-4 sm:grid-cols-3"><div className="rounded-2xl border border-[#DDE5DF] bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-[#829089]">Registered suppliers</p><p className="mt-2 text-2xl font-extrabold">{suppliers.length}</p></div><div className="rounded-2xl border border-[#DDE5DF] bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-[#829089]">Active suppliers</p><p className="mt-2 text-2xl font-extrabold text-[#168477]">{suppliers.filter(s=>s.isActive).length}</p></div><div className="rounded-2xl border border-[#DDE5DF] bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-[#829089]">Sourcing records</p><p className="mt-2 text-sm font-bold">Batch linked</p></div></div>
   <Panel title="Supplier directory" description="Supplier information recorded against incoming stock batches">

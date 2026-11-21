@@ -6,7 +6,9 @@ import { useAdminSession } from "../admin-shell";
 import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel, selectClass, StatusPill } from "../admin-ui";
 
 type Staff={id:string;userId:string;name:string;phoneNumber:string|null;phoneNumberVerified:boolean;joinedAt:string;isActive:boolean;role:{name:string;description:string|null};outlet:{id:string;code:string;name:string}|null;driverProfile:{id:string;availability:string}|null};
-type Driver={id:string;availability:string;account:{name:string;phoneNumber:string|null;phoneNumberVerified:boolean;isActive:boolean};currentAssignment:any;assignmentCount:number;canReceiveAssignment:boolean};
+type DriverCurrentAssignment={id:string;orderId:string;assignedAt:string;order:{id:string;orderNumber:string;status:string;shipName:string;shipCity:string;shipPincode:string}};
+type Driver={id:string;availability:string;account:{name:string;phoneNumber:string|null;phoneNumberVerified:boolean;isActive:boolean};currentAssignment:DriverCurrentAssignment|null;assignmentCount:number;canReceiveAssignment:boolean};
+type DriverUpdatePayload={isActive?:boolean;availability?:"AVAILABLE"|"OFFLINE"};
 type Outlet={id:string;code:string;name:string};
 async function api(url:string,init?:RequestInit){const r=await fetch(url,{...init,credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json",...(init?.headers||{})}});const d=await r.json().catch(()=>({error:"Invalid response"}));if(!r.ok)throw new Error(d.error||"Request failed");return d;}
 
@@ -25,7 +27,6 @@ export default function AdminTeamPage(){
  const [createOpen,setCreateOpen]=useState(false);
  const [form,setForm]=useState({name:"",phoneNumber:"+91",roleName:"INVENTORY_MANAGER",outletId:""});
  async function load(){
-  setLoading(true);setError("");
   try{
    const jobs=[api("/api/admin/staff/list").then(d=>setStaff(d.staff||[]))];
    if(isSuper)jobs.push(api("/api/admin/drivers?page=1&pageSize=100").then(d=>setDrivers(d.drivers||[])));
@@ -34,6 +35,8 @@ export default function AdminTeamPage(){
   }catch(e){setError(e instanceof Error?e.message:"Unable to load team directory");}
   finally{setLoading(false);}
  }
+ // The async team requests resolve before load() updates component state.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  useEffect(()=>{void load();},[]);
  async function createStaff(e:FormEvent){
   e.preventDefault();setSaving(true);setError("");setNotice("");
@@ -54,7 +57,7 @@ export default function AdminTeamPage(){
   catch(e){setError(e instanceof Error?e.message:"Unable to update staff account");}
   finally{setSaving(false);}
  }
- async function updateDriver(id:string,payload:any){
+ async function updateDriver(id:string,payload:DriverUpdatePayload){
   setSaving(true);setError("");setNotice("");
   try{await api("/api/admin/drivers/"+id,{method:"PATCH",body:JSON.stringify(payload)});setNotice("Driver account updated.");await load();}
   catch(e){setError(e instanceof Error?e.message:"Unable to update driver");}
@@ -62,7 +65,7 @@ export default function AdminTeamPage(){
  }
  const roles=["INVENTORY_MANAGER","OUTLET_MANAGER","PRODUCT_MANAGER","ORDER_MANAGER","DRIVER","CONTENT_MANAGER"];
  return <div>
-  <PageHeading eyebrow="PEOPLE & ACCESS" title="Team & drivers" description="Create staff accounts, assign operational roles and manage delivery driver availability." action={<div className="flex gap-2"><ActionButton tone="secondary" onClick={()=>void load()}><RefreshCw size={14} className="mr-2"/>Refresh</ActionButton>{canManage&&<ActionButton onClick={()=>setCreateOpen(true)}><UserPlus size={14} className="mr-2"/>Add staff</ActionButton>}</div>}/>
+  <PageHeading eyebrow="PEOPLE & ACCESS" title="Team & drivers" description="Create staff accounts, assign operational roles and manage delivery driver availability." action={<div className="flex gap-2"><ActionButton tone="secondary" onClick={()=>{setLoading(true);setError("");void load();}}><RefreshCw size={14} className="mr-2"/>Refresh</ActionButton>{canManage&&<ActionButton onClick={()=>setCreateOpen(true)}><UserPlus size={14} className="mr-2"/>Add staff</ActionButton>}</div>}/>
   {error&&<div className="mb-4"><Notice kind="error">{error}</Notice></div>}{notice&&<div className="mb-4"><Notice kind="success">{notice}</Notice></div>}
   <div className="mb-5 flex gap-2"><button onClick={()=>setTab("staff")} className={`rounded-xl px-4 py-2.5 text-xs font-bold ${tab==="staff"?"bg-[#102D38] text-white":"border border-[#DCE4DE] bg-white text-[#52675F]"}`}><Users size={13} className="mr-2 inline"/>Staff directory</button>{isSuper&&<button onClick={()=>setTab("drivers")} className={`rounded-xl px-4 py-2.5 text-xs font-bold ${tab==="drivers"?"bg-[#102D38] text-white":"border border-[#DCE4DE] bg-white text-[#52675F]"}`}><Truck size={13} className="mr-2 inline"/>Driver operations</button>}</div>
   {tab==="staff"&&<Panel title="Staff directory" description={staff.length+" staff accounts"}>

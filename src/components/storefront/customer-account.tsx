@@ -236,7 +236,7 @@ export function CustomerAccount() {
               <CircleAlert className="mt-0.5 size-5 shrink-0 text-[#B66C43]" />
               <div>
                 <h2 className="font-[family-name:var(--font-manrope)] text-lg font-bold text-[#102D38]">
-                  We couldn't load your account
+                  We couldn&apos;t load your account
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-[#71817D]">{loadError}</p>
                 <button
@@ -295,7 +295,7 @@ export function CustomerAccount() {
                         className="h-12 w-full rounded-xl border border-[#CFDCD5] bg-[#FBFCF9] px-4 text-sm text-[#102D38] outline-none transition focus:border-[#168477] focus:ring-2 focus:ring-[#168477]/10"
                         placeholder="Enter your name"
                       />
-                      <p className="mt-2 text-[11px] text-[#87928B]">This is the name we'll use for your orders.</p>
+                      <p className="mt-2 text-[11px] text-[#87928B]">This is the name we&apos;ll use for your orders.</p>
                     </div>
 
                     <div className="rounded-xl border border-[#E5EAE4] bg-[#F8FAF6] p-4">
@@ -306,7 +306,7 @@ export function CustomerAccount() {
                         {profile.phoneNumber || "Not added"}
                       </p>
                       <p className="mt-1 text-[11px] leading-5 text-[#87928B]">
-                        Your verified mobile number can't be changed here.
+                        Your verified mobile number can&apos;t be changed here.
                       </p>
                     </div>
 
@@ -411,7 +411,7 @@ export function CustomerAccount() {
                   </div>
                   <div>
                     <h3 className="font-[family-name:var(--font-manrope)] text-base font-extrabold text-[#102D38]">Need something fresh?</h3>
-                    <p className="mt-0.5 text-xs text-[#87928B]">Explore today's selection.</p>
+                    <p className="mt-0.5 text-xs text-[#87928B]">Explore today&apos;s selection.</p>
                   </div>
                 </div>
                 <Link

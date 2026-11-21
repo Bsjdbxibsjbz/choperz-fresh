@@ -89,12 +89,6 @@ export function CartPage() {
 
   // Fetch the customer's saved cart.
   const loadCart = useCallback(async (showLoading = true) => {
-    if (showLoading) {
-      setLoading(true);
-    }
-
-    setError(null);
-
     try {
       const response = await fetch("/api/cart", {
         method: "GET",
@@ -119,6 +113,7 @@ export function CartPage() {
         );
       }
 
+      setError(null);
       setRequiresLogin(false);
       setAuthMessage("");
       setCart(payload.cart);

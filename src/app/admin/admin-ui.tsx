@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 export function PageHeading({ eyebrow = "OPERATIONS", title, description, action }: { eyebrow?: string; title: string; description: string; action?: ReactNode }) {
   return <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[10px] font-extrabold uppercase tracking-[.22em] text-[#168477]">{eyebrow}</p><h1 className="mt-2 font-[family-name:var(--font-manrope)] text-3xl font-extrabold tracking-[-.05em] text-[#102D38] sm:text-4xl">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[#6D7E78]">{description}</p></div>{action && <div className="shrink-0">{action}</div>}</div>;
 }
 export function Panel({ title, description, action, children, className = "" }: { title: string; description?: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return <section className={`overflow-hidden rounded-2xl border border-[#DDE5DF] bg-white shadow-[0_4px_20px_rgba(16,45,56,.035)] ${className}`}><div className="flex flex-col justify-between gap-2 border-b border-[#EDF0EC] px-5 py-4 sm:flex-row sm:items-center"><div><h2 className="text-sm font-extrabold text-[#102D38]">{title}</h2>{description && <p className="mt-1 text-xs text-[#7B8983]">{description}</p>}</div>{action}</div><div className="p-5">{children}</div></section>;
 }
-export function MetricCard({ label, value, note, icon: Icon, tone = "teal" }: { label: string; value: string | number; note: string; icon: any; tone?: "teal" | "blue" | "orange" | "red" }) {
+export function MetricCard({ label, value, note, icon: Icon, tone = "teal" }: { label: string; value: string | number; note: string; icon: LucideIcon; tone?: "teal" | "blue" | "orange" | "red" }) {
  const tones = { teal:"bg-[#E4F2EC] text-[#168477]", blue:"bg-[#E9EFF8] text-[#436A9B]", orange:"bg-[#FBF0E7] text-[#BC7442]", red:"bg-[#FBECE8] text-[#B84C3A]" };
  return <div className="rounded-2xl border border-[#DDE5DF] bg-white p-5 shadow-[0_4px_20px_rgba(16,45,56,.035)]"><div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold text-[#7B8983]">{label}</p><p className="mt-3 font-[family-name:var(--font-manrope)] text-3xl font-extrabold tracking-tight text-[#102D38]">{value}</p></div><span className={`flex size-10 items-center justify-center rounded-xl ${tones[tone]}`}><Icon size={19}/></span></div><p className="mt-3 text-[10px] text-[#8A9690]">{note}</p></div>;
 }

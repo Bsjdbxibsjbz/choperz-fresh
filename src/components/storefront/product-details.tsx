@@ -188,11 +188,6 @@ export function ProductDetails({ slug }: { slug: string }) {
     product?.category.slug.startsWith("chicken") ||
     product?.category.name.toLowerCase().includes("chicken");
 
-  const fallbackImage =
-    product?.name.toLowerCase().includes("prawn")
-      ? "/images/storefront/prawns.jpg"
-      : "/images/storefront/fish-market.jpg";
-
   // Add selected variant, quantity and cutting preference to cart.
   async function handleAddToCart() {
     if (!product || !selectedVariant || !isInStock || isAdding) {
@@ -270,7 +265,7 @@ export function ProductDetails({ slug }: { slug: string }) {
             Product unavailable
           </h1>
           <p className="mt-3 text-sm leading-6 text-[#64746F]">
-            {error || "We couldn't find this product."}
+            {error || "We couldn&apos;t find this product."}
           </p>
           <Link
             href="/products"
@@ -537,7 +532,7 @@ export function ProductDetails({ slug }: { slug: string }) {
                 </h2>
 
                 <p className="mt-1 text-xs text-[#87928B]">
-                  Choose how you'd like your product prepared.
+                  Choose how you&apos;d like your product prepared.
                 </p>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">

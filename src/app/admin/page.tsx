@@ -28,6 +28,8 @@ export default function AdminDashboard() {
   if(canInventory) jobs.push(fetch("/api/admin/inventory?page=1&limit=100",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||"Inventory could not be loaded");setInventory(d.inventory||[]);}));
   try{await Promise.all(jobs);setUpdatedAt(new Date());}catch(e){setError(e instanceof Error?e.message:"Dashboard data could not be loaded");}finally{setLoading(false);}
  }
+ // Initial async data loads update component state after their requests resolve.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  useEffect(()=>{void load();},[]);
  const openOrders=orders.filter(o=>!["delivered","cancelled"].includes(o.status)).length;
  const lowStock=inventory.filter(i=>i.stock.onHandGrams<=1000);

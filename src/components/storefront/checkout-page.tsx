@@ -291,6 +291,11 @@ export function CheckoutPage() {
 
   );
 
+  const selectedDeliveryAddressId = selectedAddress?.id ?? "";
+  const selectedDeliveryPincode = selectedAddress?.pincode ?? "";
+  const hasValidSelectedPincode = /^\\d{6}$/.test(selectedDeliveryPincode);
+  const visibleDeliveryState: DeliveryState = hasValidSelectedPincode ? deliveryState : "idle";
+
   // Load the customer's cart and saved addresses.
 
   useEffect(() => {
@@ -451,7 +456,7 @@ export function CheckoutPage() {
 
   useEffect(() => {
 
-    if (!selectedAddress?.pincode) {
+    if (!selectedDeliveryPincode) {
 
       
 
@@ -459,7 +464,7 @@ export function CheckoutPage() {
 
     }
 
-    if (!/^\d{6}$/.test(selectedAddress.pincode)) {
+    if (!/^\d{6}$/.test(selectedDeliveryPincode)) {
 
       
 
@@ -479,7 +484,7 @@ export function CheckoutPage() {
 
           `/api/delivery/check?pincode=${encodeURIComponent(
 
-            selectedAddress!.pincode
+            selectedDeliveryPincode
 
           )}`,
 
@@ -527,7 +532,7 @@ export function CheckoutPage() {
 
     return () => controller.abort();
 
-  }, [selectedAddress?.id, selectedAddress?.pincode]);
+  }, [selectedDeliveryAddressId, selectedDeliveryPincode]);
 
   const canSaveAddress =
 
@@ -714,7 +719,7 @@ export function CheckoutPage() {
       !selectedAddress ||
 
 
-      deliveryState !== "covered" ||
+      visibleDeliveryState !== "covered" ||
 
       cart.items.length === 0 ||
 
@@ -884,7 +889,7 @@ export function CheckoutPage() {
 
           <h1 className="text-2xl font-bold text-[#102D38]">
 
-            Checkout couldn't load
+            Checkout couldn&apos;t load
 
           </h1>
 
@@ -990,7 +995,7 @@ export function CheckoutPage() {
 
           <p className="mt-3 text-sm leading-7 text-[#64746F]">
 
-            Your order has been received. We'll take care of the
+            Your order has been received. We&apos;ll take care of the
 
             next steps.
 
@@ -1106,7 +1111,7 @@ export function CheckoutPage() {
 
   const canPlaceOrder =
     Boolean(selectedAddress) &&
-    deliveryState === "covered" &&
+    visibleDeliveryState === "covered" &&
     cart.unavailableItemsCount === 0 &&
 
     !submitting;
@@ -1145,7 +1150,7 @@ export function CheckoutPage() {
 
             Checkout.
 
-            <span className="text-[#168477]"> Let's get it fresh.</span>
+            <span className="text-[#168477]"> Let&apos;s get it fresh.</span>
 
           </h1>
 
@@ -1729,13 +1734,13 @@ export function CheckoutPage() {
 
                     <p className="mt-1 text-xs leading-5 text-[#87928B]">
 
-                      Checking serviceability for {selectedAddress.pincode}.
+                      Checking serviceability for {selectedDeliveryPincode}.
 
                     </p>
 
                     <div className="mt-4">
 
-                      {deliveryState === "checking" && (
+                      {visibleDeliveryState === "checking" && (
 
                         <p className="flex items-center gap-2 text-xs text-[#64746F]">
 
@@ -1747,7 +1752,7 @@ export function CheckoutPage() {
 
                       )}
 
-                      {deliveryState === "covered" && (
+                      {visibleDeliveryState === "covered" && (
 
                         <p className="flex items-start gap-2 text-xs leading-5 text-[#126E63]">
 
@@ -1759,7 +1764,7 @@ export function CheckoutPage() {
 
                       )}
 
-                      {deliveryState === "not-covered" && (
+                      {visibleDeliveryState === "not-covered" && (
 
                         <p className="text-xs leading-5 text-[#A45D45]">
 
@@ -1771,11 +1776,11 @@ export function CheckoutPage() {
 
                       )}
 
-                      {deliveryState === "error" && (
+                      {visibleDeliveryState === "error" && (
 
                         <p className="text-xs leading-5 text-[#A45D45]">
 
-                          We couldn't check delivery availability.
+                          We couldn&apos;t check delivery availability.
 
                           Please try selecting the address again.
 
@@ -1785,7 +1790,7 @@ export function CheckoutPage() {
 
                     </div>
 
-                    {deliveryState === "covered" && (
+                    {visibleDeliveryState === "covered" && (
 
                       <p className="mt-3 text-[10px] leading-5 text-[#87928B]">
 
@@ -1825,7 +1830,7 @@ export function CheckoutPage() {
 
                   <p className="mt-1 text-xs text-[#87928B]">
 
-                    Choose how you'd like to pay.
+                    Choose how you&apos;d like to pay.
 
                   </p>
 
@@ -1865,7 +1870,7 @@ export function CheckoutPage() {
 
                 Online payment is not enabled yet. Cash on Delivery is
 
-                subject to the store's payment settings.
+                subject to the store&apos;s payment settings.
 
               </p>
 

@@ -9,7 +9,7 @@ type StockRow={id:string;outlet:{id:string;code:string;name:string;city:string|n
 type Product={id:string;name:string;slug:string;isActive?:boolean;isPlaceholder?:boolean};
 type Outlet={id:string;code:string;name:string;city?:string|null};
 type Supplier={id:string;name:string};
-type Batch={id:string;batchCode:string;product:{id:string;name:string};supplier?:{id:string;name:string}|null;receivedGrams:number;visibleAllocatedGrams:number;allocations:any[];createdAt:string};
+type Batch={id:string;batchCode:string;product:{id:string;name:string};supplier?:{id:string;name:string}|null;receivedGrams:number;visibleAllocatedGrams:number;allocations:unknown[];createdAt:string};
 const tabs=[["stock","Stock overview"],["batches","Batch history"],["receive","Receive stock"],["adjust","Adjust stock"],["transfer","Transfer stock"]] as const;
 const grams=(v:number)=>v.toLocaleString("en-IN")+" g";
 async function api(url:string,init?:RequestInit){const r=await fetch(url,{...init,credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json",...(init?.headers||{})}});const d=await r.json().catch(()=>({error:"Invalid server response"}));if(!r.ok)throw new Error(d.error||"Request failed");return d;}
@@ -22,7 +22,7 @@ export default function AdminInventoryPage(){
  const [products,setProducts]=useState<Product[]>([]);
  const [outlets,setOutlets]=useState<Outlet[]>([]);
  const [suppliers,setSuppliers]=useState<Supplier[]>([]);
- const [loading,setLoading]=useState(false);
+ const [loading,setLoading]=useState(true);
  const [saving,setSaving]=useState(false);
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
@@ -52,7 +52,6 @@ export default function AdminInventoryPage(){
  const isSuper=role==="SUPER_ADMIN";
 
  async function load(){
-  setLoading(true);setError("");
   try{
    const jobs:Promise<void>[]=[
     api("/api/admin/inventory?limit=100").then(d=>setStock(d.inventory||[])),
@@ -65,6 +64,8 @@ export default function AdminInventoryPage(){
   }catch(e){setError(e instanceof Error?e.message:"Unable to load inventory data");}
   finally{setLoading(false);}
  }
+ // The async inventory requests complete before state is updated.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  useEffect(()=>{void load();},[]);
  const stockOutlets=useMemo(()=>{const map=new Map<string,Outlet>();for(const r of stock)map.set(r.outlet.id,r.outlet);for(const o of outlets)map.set(o.id,o);return Array.from(map.values());},[stock,outlets]);
  const filtered=stock.filter(r=>(!outletFilter||r.outlet.id===outletFilter)&&(!search||r.product.name.toLowerCase().includes(search.toLowerCase())||r.outlet.name.toLowerCase().includes(search.toLowerCase())));
@@ -98,7 +99,7 @@ export default function AdminInventoryPage(){
  }
 
  return <div>
-  <PageHeading eyebrow="STOCK CONTROL" title="Inventory" description="Track outlet stock, trace receiving batches and record every stock movement." action={<ActionButton tone="secondary" onClick={()=>void load()}><RefreshCw size={14} className="mr-2"/>Refresh</ActionButton>}/>
+  <PageHeading eyebrow="STOCK CONTROL" title="Inventory" description="Track outlet stock, trace receiving batches and record every stock movement." action={<ActionButton tone="secondary" onClick={()=>{setLoading(true);setError("");void load();}}><RefreshCw size={14} className="mr-2"/>Refresh</ActionButton>}/>
   {error&&<div className="mb-4"><Notice kind="error">{error}</Notice></div>}{notice&&<div className="mb-4"><Notice kind="success">{notice}</Notice></div>}
   <div className="mb-5 flex gap-2 overflow-x-auto pb-1">{tabs.filter(([key])=>key==="stock"||key==="batches"||(key==="receive"&&canReceive)||(key==="adjust"&&canAdjust)||(key==="transfer"&&canTransfer)).map(([key,label])=><button key={key} onClick={()=>setTab(key)} className={`shrink-0 rounded-xl px-4 py-2.5 text-xs font-bold transition ${tab===key?"bg-[#102D38] text-white":"border border-[#DCE4DE] bg-white text-[#53675F] hover:bg-[#F8FAF8]"}`}>{label}</button>)}</div>
 
