@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  Clock3,
   CreditCard,
   Loader2,
   MapPin,
@@ -379,9 +378,9 @@ export function CustomerOrders() {
         throw new Error(data.error || "Unable to cancel this order.");
       }
 
-      setCancelNotice(data.message || "Your order has been cancelled.");
       await loadOrders(false);
       await openOrder(selectedOrder.id);
+      setCancelNotice(data.message || "Your order has been cancelled.");
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : "Unable to cancel this order.");
     } finally {
