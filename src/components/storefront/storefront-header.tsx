@@ -32,10 +32,24 @@ export function StorefrontHeader() {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
 
-  const accountHref =
-    session?.user.kind === "STAFF" ? "/admin" : "/account";
-  const accountLabel =
-    session?.user.kind === "STAFF" ? "Dashboard" : "Account";
+  const isGuest = !sessionPending && !session?.user;
+  const accountHref = sessionPending
+    ? "/account"
+    : session?.user.kind === "STAFF"
+      ? "/admin"
+      : session?.user
+        ? "/account"
+        : "/login";
+  const accountLabel = sessionPending
+    ? "Account"
+    : session?.user.kind === "STAFF"
+      ? "Dashboard"
+      : session?.user
+        ? "Account"
+        : "Sign in";
+  const accountActionClassName = isGuest
+    ? "inline-flex h-11 items-center gap-2 rounded-full bg-[#168477] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#102D38]"
+    : "flex items-center gap-2 text-sm font-medium text-[#102D38] transition-colors hover:text-[#168477]";
 
   async function handleSignOut() {
     if (signingOut) return;
@@ -118,7 +132,7 @@ export function StorefrontHeader() {
           <div className="hidden shrink-0 items-center gap-5 md:flex">
             <Link
               href={accountHref}
-              className="flex items-center gap-2 text-sm font-medium text-[#102D38] transition-colors hover:text-[#168477]"
+              className={accountActionClassName}
             >
               <UserRound className="size-[19px]" strokeWidth={1.7} />
               <span>{accountLabel}</span>
@@ -236,7 +250,11 @@ export function StorefrontHeader() {
                   <Link
                     href={accountHref}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2 text-sm font-medium text-[#102D38]"
+                    className={
+                      isGuest
+                        ? "inline-flex items-center gap-2 rounded-full bg-[#168477] px-4 py-2.5 text-sm font-semibold text-white"
+                        : "flex items-center gap-2 text-sm font-medium text-[#102D38]"
+                    }
                   >
                     <UserRound className="size-4" />
                     {accountLabel}
