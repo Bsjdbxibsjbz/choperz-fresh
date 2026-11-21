@@ -13,7 +13,7 @@ async function api(url:string,init?:RequestInit){const r=await fetch(url,{...ini
 const slugify=(v:string)=>v.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
 
 export default function AdminCataloguePage(){
- const {permissions,role}=useAdminSession();
+ const {permissions}=useAdminSession();
  const canEdit=permissions.includes("products.write");
  const canPrice=permissions.includes("prices.write");
  const [products,setProducts]=useState<Product[]>([]);
