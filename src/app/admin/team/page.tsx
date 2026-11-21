@@ -11,7 +11,7 @@ type Outlet={id:string;code:string;name:string};
 async function api(url:string,init?:RequestInit){const r=await fetch(url,{...init,credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json",...(init?.headers||{})}});const d=await r.json().catch(()=>({error:"Invalid response"}));if(!r.ok)throw new Error(d.error||"Request failed");return d;}
 
 export default function AdminTeamPage(){
- const {permissions,role}=useAdminSession();
+ const {permissions,role,phoneNumber}=useAdminSession();
  const canManage=permissions.includes("staff.manage")&&permissions.includes("roles.manage");
  const isSuper=role==="SUPER_ADMIN";
  const [staff,setStaff]=useState<Staff[]>([]);
@@ -45,6 +45,15 @@ export default function AdminTeamPage(){
   }catch(e){setError(e instanceof Error?e.message:"Unable to create staff account");}
   finally{setSaving(false);}
  }
+ async function toggleStaff(s:Staff){
+  if(s.phoneNumber===phoneNumber&&!s.isActive){setError("Your own account cannot be reactivated from this screen.");return;}
+  const action=s.isActive?"deactivate":"activate";
+  if(!window.confirm("Are you sure you want to "+action+" "+s.name+"?"))return;
+  setSaving(true);setError("");setNotice("");
+  try{await api("/api/admin/staff/"+s.id,{method:"PATCH",body:JSON.stringify({isActive:!s.isActive})});setNotice("Staff account status updated.");await load();}
+  catch(e){setError(e instanceof Error?e.message:"Unable to update staff account");}
+  finally{setSaving(false);}
+ }
  async function updateDriver(id:string,payload:any){
   setSaving(true);setError("");setNotice("");
   try{await api("/api/admin/drivers/"+id,{method:"PATCH",body:JSON.stringify(payload)});setNotice("Driver account updated.");await load();}
@@ -57,7 +66,7 @@ export default function AdminTeamPage(){
   {error&&<div className="mb-4"><Notice kind="error">{error}</Notice></div>}{notice&&<div className="mb-4"><Notice kind="success">{notice}</Notice></div>}
   <div className="mb-5 flex gap-2"><button onClick={()=>setTab("staff")} className={`rounded-xl px-4 py-2.5 text-xs font-bold ${tab==="staff"?"bg-[#102D38] text-white":"border border-[#DCE4DE] bg-white text-[#52675F]"}`}><Users size={13} className="mr-2 inline"/>Staff directory</button>{isSuper&&<button onClick={()=>setTab("drivers")} className={`rounded-xl px-4 py-2.5 text-xs font-bold ${tab==="drivers"?"bg-[#102D38] text-white":"border border-[#DCE4DE] bg-white text-[#52675F]"}`}><Truck size={13} className="mr-2 inline"/>Driver operations</button>}</div>
   {tab==="staff"&&<Panel title="Staff directory" description={staff.length+" staff accounts"}>
-   {loading?<p className="py-12 text-center text-xs text-[#829089]">Loading staff directory…</p>:staff.length===0?<EmptyState title="No staff accounts found" detail="Create a staff account to begin assigning operational responsibilities."/>:<div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-[#E9EEEA] text-[9px] font-bold uppercase tracking-wider text-[#829089]"><th className="pb-3">Staff member</th><th className="pb-3">Role</th><th className="pb-3">Outlet</th><th className="pb-3">Mobile verification</th><th className="pb-3">Account</th><th className="pb-3">Joined</th></tr></thead><tbody>{staff.map(s=><tr key={s.id} className="border-b border-[#F0F2EF] text-xs last:border-0"><td className="py-4"><p className="font-extrabold">{s.name}</p><p className="mt-1 text-[10px] text-[#87938D]">{s.phoneNumber||"No phone"}</p></td><td className="py-4"><span className="text-[10px] font-bold">{s.role.name.replaceAll("_"," ")}</span></td><td className="py-4">{s.outlet?.name||"—"}</td><td className="py-4"><StatusPill value={s.phoneNumberVerified?"Verified":"Pending"}/></td><td className="py-4"><StatusPill value={s.isActive?"Active":"Inactive"}/></td><td className="py-4 text-[10px] text-[#87938D]">{new Date(s.joinedAt).toLocaleDateString("en-IN")}</td></tr>)}</tbody></table></div>}
+   {loading?<p className="py-12 text-center text-xs text-[#829089]">Loading staff directory…</p>:staff.length===0?<EmptyState title="No staff accounts found" detail="Create a staff account to begin assigning operational responsibilities."/>:<div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-[#E9EEEA] text-[9px] font-bold uppercase tracking-wider text-[#829089]"><th className="pb-3">Staff member</th><th className="pb-3">Role</th><th className="pb-3">Outlet</th><th className="pb-3">Mobile verification</th><th className="pb-3">Account</th><th className="pb-3">Joined</th><th className="pb-3 text-right">Controls</th></tr></thead><tbody>{staff.map(s=><tr key={s.id} className="border-b border-[#F0F2EF] text-xs last:border-0"><td className="py-4"><p className="font-extrabold">{s.name}</p><p className="mt-1 text-[10px] text-[#87938D]">{s.phoneNumber||"No phone"}</p></td><td className="py-4"><span className="text-[10px] font-bold">{s.role.name.replaceAll("_"," ")}</span></td><td className="py-4">{s.outlet?.name||"—"}</td><td className="py-4"><StatusPill value={s.phoneNumberVerified?"Verified":"Pending"}/></td><td className="py-4"><StatusPill value={s.isActive?"Active":"Inactive"}/></td><td className="py-4 text-[10px] text-[#87938D]">{new Date(s.joinedAt).toLocaleDateString("en-IN")}</td><td className="py-4 text-right"><button disabled={saving||s.phoneNumber===phoneNumber} onClick={()=>void toggleStaff(s)} className="rounded-lg border border-[#DCE5DF] px-3 py-2 text-[10px] font-bold disabled:opacity-40">{s.isActive?"Deactivate":"Activate"}</button></td></tr>)}</tbody></table></div>}
    <div className="mt-4"><Notice>New staff accounts are created with mobile verification pending. They must complete OTP verification before using protected staff APIs.</Notice></div>
   </Panel>}
   {tab==="drivers"&&isSuper&&<Panel title="Driver operations" description={drivers.length+" driver profiles"}>
