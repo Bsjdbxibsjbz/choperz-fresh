@@ -23,7 +23,7 @@ export function useAdminSession() {
   return value;
 }
 
-const navItems = [
+const navItems: { href: string; label: string; icon: typeof LayoutDashboard; permission?: string; superAdmin?: boolean }[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList, permission: "orders.read" },
   { href: "/admin/inventory", label: "Inventory", icon: Warehouse, permission: "inventory.read" },
