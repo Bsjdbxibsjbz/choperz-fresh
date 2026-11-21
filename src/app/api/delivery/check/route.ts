@@ -12,9 +12,10 @@ const querySchema = z.object({
 // Public, pincode-only check: is the pincode inside an active delivery zone of
 // an active outlet? It lets the storefront warn a customer early.
 //
-// `covered: true` does NOT guarantee the order will be accepted. Checkout still
-// applies the exact delivery address (GPS), the outlet's maximum radius and
-// stock before it assigns an outlet. The response reveals no outlet details.
+// `covered: true` is an early check only. Checkout confirms the saved pincode
+// against active outlet zones and checks stock. Saved GPS coordinates may still
+// help rank outlets and enforce a configured radius. The response reveals no
+// outlet details.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 

@@ -676,15 +676,13 @@ export function CartPage() {
                         </div>
                       )}
 
-                      <button
-                        type="button"
-                        disabled
-                        title="Checkout will be enabled when the checkout page is built."
-                        className="flex h-13 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-[#AABCB6] px-5 text-sm font-semibold text-white opacity-80"
+                      <Link
+                        href="/checkout"
+                        className="flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#168477] px-5 text-sm font-semibold text-white transition hover:bg-[#126E63]"
                       >
-                        Checkout is next
+                         Continue to checkout
                         <ArrowRight className="h-4 w-4" />
-                      </button>
+                      </Link>
 
                       <Link
                         href="/"

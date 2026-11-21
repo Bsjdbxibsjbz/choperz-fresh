@@ -13,12 +13,24 @@ const createAddressSchema = z
     landmark: z.string().trim().max(120).nullable().optional(),
     city: z.string().trim().min(2).max(80).default("Mysuru"),
     pincode: z.string().trim().regex(/^\d{6}$/, "Enter a valid 6-digit Indian pincode."),
-    latitude: z.number().min(-90).max(90),
-    longitude: z.number().min(-180).max(180),
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
     isDefault: z.boolean().default(false),
   })
   .strict()
-;
+  .superRefine((data, ctx) => {
+    const hasLatitude = data.latitude !== undefined && data.latitude !== null;
+    const hasLongitude = data.longitude !== undefined && data.longitude !== null;
+
+    if (hasLatitude !== hasLongitude) {
+      ctx.addIssue({
+        code: "custom",
+        path: [hasLatitude ? "longitude" : "latitude"],
+        message: "Latitude and longitude must either both be provided or both be omitted.",
+      });
+    }
+  });
+
 
 // GET: List the authenticated customer's active addresses.
 export async function GET() {
@@ -129,8 +141,8 @@ export async function POST(request: Request) {
           landmark: data.landmark ?? null,
           city: data.city,
           pincode: data.pincode,
-          latitude: data.latitude,
-          longitude: data.longitude,
+          latitude: data.latitude ?? null,
+          longitude: data.longitude ?? null,
           isDefault: makeDefault,
         },
       });

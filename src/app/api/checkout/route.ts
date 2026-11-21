@@ -130,10 +130,6 @@ export async function POST(request: Request) {
           throw new Error("ADDRESS_NOT_FOUND");
         }
 
-        if (address.latitude === null || address.longitude === null) {
-          throw new Error("ADDRESS_LOCATION_REQUIRED");
-        }
-
         if (!/^\d{6}$/.test(address.pincode)) {
           throw new Error("INVALID_DELIVERY_PINCODE");
         }
@@ -244,7 +240,22 @@ export async function POST(request: Request) {
         }
 
 
-        // Pincode zones establish serviceability; GPS selects the nearest eligible outlet.
+        // Pincode zones establish serviceability. GPS is optional: when it is
+        // present, it ranks outlets and applies maxRadiusKm; otherwise pincode
+        // coverage is authoritative.
+        const requirements = new Map<string, { grams: number; productName: string }>();
+        for (const item of orderItems) {
+          const current = requirements.get(item.productId) ?? {
+            grams: 0,
+            productName: item.productName,
+          };
+          current.grams += item.weightGrams * item.quantity;
+          if (!Number.isSafeInteger(current.grams)) {
+            throw new Error("INVALID_STOCK_QUANTITY");
+          }
+          requirements.set(item.productId, current);
+        }
+
         const serviceableOutlets = await tx.outlet.findMany({
           where: {
             isActive: true,
@@ -264,28 +275,78 @@ export async function POST(request: Request) {
           throw new Error("DELIVERY_NOT_AVAILABLE");
         }
 
-        const locatedOutlets = serviceableOutlets
-          .filter((outlet) => outlet.latitude !== null && outlet.longitude !== null)
-          .map((outlet) => ({
-            ...outlet,
-            distanceKm: distanceKm(
-              address.latitude as number,
-              address.longitude as number,
-              outlet.latitude as number,
-              outlet.longitude as number
-            ),
-          }))
-          .filter((outlet) => outlet.maxRadiusKm === null || outlet.distanceKm <= outlet.maxRadiusKm)
-          .sort((a, b) => a.distanceKm - b.distanceKm);
+        const hasAddressCoordinates =
+          address.latitude !== null && address.longitude !== null;
 
-        if (locatedOutlets.length === 0) {
-          if (serviceableOutlets.every((outlet) => outlet.latitude === null || outlet.longitude === null)) {
-            throw new Error("OUTLET_LOCATION_NOT_CONFIGURED");
-          }
+        const rankedOutlets = serviceableOutlets
+          .map((outlet) => {
+            const outletDistanceKm =
+              hasAddressCoordinates &&
+              outlet.latitude !== null &&
+              outlet.longitude !== null
+                ? distanceKm(
+                    address.latitude as number,
+                    address.longitude as number,
+                    outlet.latitude,
+                    outlet.longitude
+                  )
+                : null;
+
+            return { ...outlet, distanceKm: outletDistanceKm };
+          })
+          .filter(
+            (outlet) =>
+              outlet.distanceKm === null ||
+              outlet.maxRadiusKm === null ||
+              outlet.distanceKm <= outlet.maxRadiusKm
+          )
+          .sort((a, b) => {
+            if (a.distanceKm === null && b.distanceKm === null) {
+              return a.code.localeCompare(b.code);
+            }
+            if (a.distanceKm === null) return 1;
+            if (b.distanceKm === null) return -1;
+            return a.distanceKm - b.distanceKm;
+          });
+
+        if (rankedOutlets.length === 0) {
           throw new Error("DELIVERY_NOT_AVAILABLE");
         }
 
-        const selectedOutlet = locatedOutlets[0];
+        // Choose the nearest (or, without GPS, first configured) outlet that
+        // can fulfil the complete basket.
+        let selectedOutlet: (typeof rankedOutlets)[number] | null = null;
+
+        for (const outlet of rankedOutlets) {
+          const inventoryRows = await tx.inventory.findMany({
+            where: {
+              outletId: outlet.id,
+              productId: { in: Array.from(requirements.keys()) },
+            },
+            select: {
+              productId: true,
+              onHandGrams: true,
+            },
+          });
+
+          const inventoryByProduct = new Map(
+            inventoryRows.map((row) => [row.productId, row.onHandGrams])
+          );
+
+          const canFulfil = Array.from(requirements.entries()).every(
+            ([productId, requirement]) =>
+              (inventoryByProduct.get(productId) ?? 0) >= requirement.grams
+          );
+
+          if (canFulfil) {
+            selectedOutlet = outlet;
+            break;
+          }
+        }
+
+        if (!selectedOutlet) {
+          throw new Error("INSUFFICIENT_STOCK");
+        }
 
         // Cash on Delivery is controlled by the admin setting.
         const codSetting = await tx.siteSetting.findUnique({
@@ -330,7 +391,7 @@ export async function POST(request: Request) {
                 fromStatus: null,
                 toStatus: "pending",
                 actorId: user.id,
-                note: "Order placed and assigned to nearest eligible outlet: " + selectedOutlet.code + ".",
+                note: "Order placed and assigned to outlet: " + selectedOutlet.code + ".",
               },
             },
           },
@@ -348,20 +409,6 @@ export async function POST(request: Request) {
             createdAt: true,
           },
         });
-
-        // Inventory is tracked in grams per product/outlet. Aggregate package variants by product.
-        const requirements = new Map<string, { grams: number; productName: string }>();
-        for (const item of orderItems) {
-          const current = requirements.get(item.productId) ?? {
-            grams: 0,
-            productName: item.productName,
-          };
-          current.grams += item.weightGrams * item.quantity;
-          if (!Number.isSafeInteger(current.grams)) {
-            throw new Error("INVALID_STOCK_QUANTITY");
-          }
-          requirements.set(item.productId, current);
-        }
 
         // Deduct stock immediately using conditional atomic updates. No reservations are created.
         for (const [productId, requirement] of [...requirements.entries()].sort(([a], [b]) => a.localeCompare(b))) {
@@ -407,7 +454,10 @@ export async function POST(request: Request) {
             id: selectedOutlet.id,
             code: selectedOutlet.code,
             name: selectedOutlet.name,
-            distanceKm: Number(selectedOutlet.distanceKm.toFixed(2)),
+            distanceKm:
+              selectedOutlet.distanceKm === null
+                ? null
+                : Number(selectedOutlet.distanceKm.toFixed(2)),
           },
         };
       },
@@ -420,7 +470,7 @@ export async function POST(request: Request) {
       {
         success: true,
         message:
-          "Order placed and assigned to the nearest eligible outlet.",
+          "Order placed and assigned to an eligible outlet.",
         order: {
           ...result,
           deliveryFeePaise: 0,
@@ -445,10 +495,6 @@ export async function POST(request: Request) {
         INVALID_DELIVERY_PINCODE: {
           status: 400,
           message: "The saved delivery pincode is invalid.",
-        },
-        ADDRESS_LOCATION_REQUIRED: {
-          status: 422,
-          message: "Add GPS coordinates to this address before checkout.",
         },
         OUTLET_LOCATION_NOT_CONFIGURED: {
           status: 503,
