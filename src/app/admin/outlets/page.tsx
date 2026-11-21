@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, MapPin, Plus, RefreshCw, X } from "lucide-react";
-import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel, selectClass, StatusPill } from "../admin-ui";
+import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel, StatusPill } from "../admin-ui";
 
 type Zone={id:string;pincode:string;isActive:boolean};
 type Outlet={id:string;code:string;name:string;addressLine:string|null;city:string|null;pincode:string|null;latitude:number|null;longitude:number|null;maxRadiusKm:number|null;isActive:boolean};
