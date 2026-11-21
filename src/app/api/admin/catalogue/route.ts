@@ -261,7 +261,7 @@ export async function POST(request: Request) {
         data: {
           slug: data.slug,
           name: data.name,
-          categoryId: data.categoryId,
+          category: { connect: { id: data.categoryId } },
           localName: data.localName ?? null,
           englishName: data.englishName ?? null,
           scientificName: data.scientificName ?? null,
