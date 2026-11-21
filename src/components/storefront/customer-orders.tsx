@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -258,6 +259,9 @@ function OrderSkeleton() {
 }
 
 export function CustomerOrders() {
+  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const sessionUserId = session?.user.id ?? null;
+
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -317,8 +321,19 @@ export function CustomerOrders() {
   }, [page, statusFilter]);
 
   useEffect(() => {
+    // Don't call the orders API until the auth client has resolved the session.
+    if (sessionPending) return;
+
+    if (!sessionUserId) {
+      setOrders([]);
+      setRequiresLogin(true);
+      setLoading(false);
+      return;
+    }
+
+    setRequiresLogin(false);
     void Promise.resolve().then(() => loadOrders());
-  }, [loadOrders]);
+  }, [loadOrders, sessionPending, sessionUserId]);
 
   async function openOrder(orderId: string) {
     setSelectedOrder(null);
