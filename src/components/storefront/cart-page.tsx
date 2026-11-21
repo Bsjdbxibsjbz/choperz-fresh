@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -77,6 +78,9 @@ async function readResponse(
 }
 
 export function CartPage() {
+  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const sessionUserId = session?.user.id ?? null;
+
   const [cart, setCart] = useState<CartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [requiresLogin, setRequiresLogin] = useState(false);
@@ -132,25 +136,33 @@ export function CartPage() {
   }, []);
 
   useEffect(() => {
-    void Promise.resolve().then(() => loadCart());
+    // Wait for Better Auth to resolve before requesting the customer's cart.
+    if (sessionPending) return;
 
+    if (!sessionUserId) {
+      setCart(null);
+      setRequiresLogin(true);
+      setAuthMessage("Please sign in to view your cart.");
+      setLoading(false);
+      return;
+    }
+
+    setRequiresLogin(false);
+    setAuthMessage("");
+    void Promise.resolve().then(() => loadCart());
+  }, [loadCart, sessionPending, sessionUserId]);
+
+  useEffect(() => {
     // Refresh cart if another storefront component adds an item.
     const handleCartUpdate = () => {
-      void loadCart(false);
+      if (sessionUserId) void loadCart(false);
     };
 
-    window.addEventListener(
-      "choperz:cart-updated",
-      handleCartUpdate
-    );
-
+    window.addEventListener("choperz:cart-updated", handleCartUpdate);
     return () => {
-      window.removeEventListener(
-        "choperz:cart-updated",
-        handleCartUpdate
-      );
+      window.removeEventListener("choperz:cart-updated", handleCartUpdate);
     };
-  }, [loadCart]);
+  }, [loadCart, sessionUserId]);
 
   // Update the quantity of a cart item.
   async function updateQuantity(
