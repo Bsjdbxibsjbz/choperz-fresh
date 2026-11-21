@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowLeftRight, RefreshCw } from "lucide-react";
 import { useAdminSession } from "../admin-shell";
 import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel, selectClass, StatusPill, textAreaClass } from "../admin-ui";
@@ -71,7 +71,7 @@ export default function AdminInventoryPage(){
  const totalGrams=filtered.reduce((n,r)=>n+r.stock.onHandGrams,0);
  const low=filtered.filter(r=>r.stock.onHandGrams<=1000);
 
- async function submitReceive(e:React.FormEvent){
+ async function submitReceive(e:FormEvent){
   e.preventDefault();setSaving(true);setError("");setNotice("");
   const q=Number(receivedGrams);
   try{
@@ -80,7 +80,7 @@ export default function AdminInventoryPage(){
   }catch(e){setError(e instanceof Error?e.message:"Unable to receive stock");}
   finally{setSaving(false);}
  }
- async function submitAdjust(e:React.FormEvent){
+ async function submitAdjust(e:FormEvent){
   e.preventDefault();setSaving(true);setError("");setNotice("");
   try{
    await api("/api/admin/inventory/adjust",{method:"POST",body:JSON.stringify({outletId:adjustOutlet,productId:adjustProduct,gramsDelta:Number(adjustDelta),type:adjustType,note:adjustNote})});
@@ -88,7 +88,7 @@ export default function AdminInventoryPage(){
   }catch(e){setError(e instanceof Error?e.message:"Unable to adjust inventory");}
   finally{setSaving(false);}
  }
- async function submitTransfer(e:React.FormEvent){
+ async function submitTransfer(e:FormEvent){
   e.preventDefault();setSaving(true);setError("");setNotice("");
   try{
    await api("/api/admin/inventory/transfer",{method:"POST",body:JSON.stringify({batchId:transferBatch,fromOutletId:fromOutlet,toOutletId:toOutlet,grams:Number(transferGrams),note:transferNote||null})});
