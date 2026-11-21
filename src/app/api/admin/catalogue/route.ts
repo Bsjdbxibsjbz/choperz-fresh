@@ -194,3 +194,127 @@ export async function GET(request: Request) {
     );
   }
 }
+
+
+// POST: Create a product and its initial weight variants.
+const createProductSchema = z.object({
+  slug: z.string().trim().min(2).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  name: z.string().trim().min(2).max(120),
+  categoryId: z.string().trim().min(1).max(100),
+  localName: z.string().trim().max(120).nullable().optional(),
+  englishName: z.string().trim().max(120).nullable().optional(),
+  scientificName: z.string().trim().max(160).nullable().optional(),
+  description: z.string().trim().max(3000).nullable().optional(),
+  sourceInfo: z.string().trim().max(1500).nullable().optional(),
+  storageInstructions: z.string().trim().max(1500).nullable().optional(),
+  isPlaceholder: z.boolean().default(false),
+  isSourceVerified: z.boolean().default(false),
+  variants: z.array(z.object({
+    label: z.string().trim().min(1).max(40),
+    weightGrams: z.number().int().min(1).max(100000),
+    pricePaise: z.number().int().min(0).max(2147483647),
+  }).strict()).min(1).max(12),
+  cutOptionIds: z.array(z.string().trim().min(1).max(100)).max(20).optional(),
+}).strict().superRefine((data, ctx) => {
+  const weights = data.variants.map(v => v.weightGrams);
+  if (new Set(weights).size !== weights.length) {
+    ctx.addIssue({ code: "custom", path: ["variants"], message: "Each weight must be unique." });
+  }
+});
+
+export async function POST(request: Request) {
+  const access = await requireStaffPermissions(["products.write", "prices.write", "categories.write"]);
+  if (!access.authorized) {
+    return NextResponse.json({ success: false, error: access.message }, { status: access.status });
+  }
+
+  let body: unknown;
+  try { body = await request.json(); }
+  catch { return NextResponse.json({ success: false, error: "Invalid JSON request body." }, { status: 400 }); }
+
+  const parsed = createProductSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, error: "Invalid product details.", details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const data = parsed.data;
+  try {
+    const product = await prisma.$transaction(async (tx) => {
+      const category = await tx.category.findFirst({
+        where: { id: data.categoryId, isActive: true },
+        select: { id: true },
+      });
+      if (!category) throw new Error("CATEGORY_NOT_FOUND");
+
+      if (data.cutOptionIds?.length) {
+        const cuts = await tx.cutOption.findMany({
+          where: { id: { in: data.cutOptionIds } },
+          select: { id: true },
+        });
+        if (cuts.length !== new Set(data.cutOptionIds).size) throw new Error("CUT_OPTION_NOT_FOUND");
+      }
+
+      const created = await tx.product.create({
+        data: {
+          slug: data.slug,
+          name: data.name,
+          categoryId: data.categoryId,
+          localName: data.localName ?? null,
+          englishName: data.englishName ?? null,
+          scientificName: data.scientificName ?? null,
+          description: data.description ?? null,
+          sourceInfo: data.sourceInfo ?? null,
+          storageInstructions: data.storageInstructions ?? null,
+          isPlaceholder: data.isPlaceholder,
+          isSourceVerified: data.isSourceVerified,
+          isActive: true,
+          variants: {
+            create: data.variants.map((variant) => ({
+              sku: data.slug + "-" + variant.weightGrams + "g",
+              label: variant.label,
+              weightGrams: variant.weightGrams,
+              pricePaise: variant.pricePaise,
+              isActive: true,
+            })),
+          },
+          ...(data.cutOptionIds?.length ? {
+            cutOptions: {
+              create: data.cutOptionIds.map((cutOptionId) => ({ cutOptionId })),
+            },
+          } : {}),
+        },
+        select: { id: true, slug: true, name: true, isActive: true, isPlaceholder: true, isSourceVerified: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: access.userId,
+          action: "PRODUCT_CREATED",
+          entity: "Product",
+          entityId: created.id,
+          after: {
+            slug: created.slug,
+            name: created.name,
+            categoryId: data.categoryId,
+            variantCount: data.variants.length,
+            isPlaceholder: data.isPlaceholder,
+          },
+        },
+      });
+      return created;
+    });
+    return NextResponse.json({ success: true, message: "Product created successfully.", product }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "CATEGORY_NOT_FOUND") {
+      return NextResponse.json({ success: false, error: "Active category not found." }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "CUT_OPTION_NOT_FOUND") {
+      return NextResponse.json({ success: false, error: "One or more cutting options do not exist." }, { status: 400 });
+    }
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      return NextResponse.json({ success: false, error: "Product slug or SKU already exists." }, { status: 409 });
+    }
+    console.error("Admin product creation failed:", error);
+    return NextResponse.json({ success: false, error: "Unable to create product." }, { status: 500 });
+  }
+}
