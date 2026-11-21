@@ -71,16 +71,8 @@ export function CustomerAccount() {
   useEffect(() => {
     // Wait until Better Auth has resolved the current session before calling
     // the customer API. This avoids treating a just-completed login as a guest.
-    if (sessionPending) return;
+    if (sessionPending || !sessionUserId) return;
 
-    if (!sessionUserId) {
-      setProfile(null);
-      setRequiresLogin(true);
-      setLoading(false);
-      return;
-    }
-
-    setRequiresLogin(false);
     const controller = new AbortController();
 
     async function loadProfile() {
@@ -127,6 +119,11 @@ export function CustomerAccount() {
     void loadProfile();
     return () => controller.abort();
   }, [sessionPending, sessionUserId]);
+
+  const showLoading =
+    sessionPending || (Boolean(sessionUserId) && loading);
+  const showLogin =
+    (!sessionPending && !sessionUserId) || requiresLogin;
 
   const memberSince = useMemo(
     () => (profile ? formatMemberSince(profile.createdAt) : ""),
@@ -221,14 +218,14 @@ export function CustomerAccount() {
           </Link>
         </div>
 
-        {loading ? (
+        {showLoading ? (
           <div className="flex min-h-[360px] items-center justify-center rounded-[28px] border border-[#E2E4D9] bg-white">
             <div className="text-center">
               <Loader2 className="mx-auto size-7 animate-spin text-[#168477]" />
               <p className="mt-4 text-sm text-[#71817D]">Loading your account...</p>
             </div>
           </div>
-        ) : requiresLogin ? (
+        ) : showLogin ? (
           <section className="mx-auto flex min-h-[380px] max-w-xl flex-col items-center justify-center rounded-[28px] border border-[#E2E4D9] bg-white px-6 py-12 text-center shadow-[0_18px_60px_rgba(16,45,56,0.05)]">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-[#DCECE5] text-[#168477]">
               <UserRound className="size-7" />
