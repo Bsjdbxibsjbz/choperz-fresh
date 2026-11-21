@@ -98,6 +98,15 @@ export function CustomerAuthForm({
         return;
       }
 
+      // Confirm that the server-issued session is readable before navigating.
+      const sessionResult = await authClient.getSession();
+      if (sessionResult.error || !sessionResult.data) {
+        setError(
+          "Your number was verified, but we couldn't establish your login session. Please try again."
+        );
+        return;
+      }
+
       router.replace(callbackUrl);
       router.refresh();
     } catch (err) {
