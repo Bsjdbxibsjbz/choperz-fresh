@@ -24,16 +24,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // 2. Only the Super Admin may view the complete catalogue.
-    if (access.roleName !== "SUPER_ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Super Admin access required.",
-        },
-        { status: 403 }
-      );
-    }
+    // Super Admin sees placeholders and inactive records; other product staff see published products only.
+    const isSuperAdmin = access.roleName === "SUPER_ADMIN";
 
     // 3. Validate search, category and pagination parameters.
     const url = new URL(request.url);
@@ -61,6 +53,7 @@ export async function GET(request: Request) {
     // 4. Build filters. Unlike public APIs, this includes
     // placeholders, inactive products and soft-deleted records.
     const where = {
+      ...(!isSuperAdmin ? { isActive: true, isPlaceholder: false, deletedAt: null } : {}),
       ...(category
         ? {
             category: {
@@ -178,7 +171,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      access: "SUPER_ADMIN",
+      access: isSuperAdmin ? "SUPER_ADMIN" : "PRODUCT_STAFF",
 
       pagination: {
         page,
