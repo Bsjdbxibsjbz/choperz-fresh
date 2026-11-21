@@ -32,6 +32,11 @@ export function StorefrontHeader() {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
 
+  const accountHref =
+    session?.user.kind === "STAFF" ? "/admin" : "/account";
+  const accountLabel =
+    session?.user.kind === "STAFF" ? "Dashboard" : "Account";
+
   async function handleSignOut() {
     if (signingOut) return;
 
@@ -112,11 +117,11 @@ export function StorefrontHeader() {
           {/* Desktop actions */}
           <div className="hidden shrink-0 items-center gap-5 md:flex">
             <Link
-              href="/account"
+              href={accountHref}
               className="flex items-center gap-2 text-sm font-medium text-[#102D38] transition-colors hover:text-[#168477]"
             >
               <UserRound className="size-[19px]" strokeWidth={1.7} />
-              <span>Account</span>
+              <span>{accountLabel}</span>
             </Link>
 
             {!sessionPending && session?.user && (
@@ -229,12 +234,12 @@ export function StorefrontHeader() {
 
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-4 py-5">
                   <Link
-                    href="/account"
+                    href={accountHref}
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-2 text-sm font-medium text-[#102D38]"
                   >
                     <UserRound className="size-4" />
-                    Account
+                    {accountLabel}
                   </Link>
                   <Link
                     href="/cart"
