@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 import {
   ArrowRight,
   BadgeCheck,
@@ -53,6 +54,9 @@ function formatMemberSince(value: string) {
 }
 
 export function CustomerAccount() {
+  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const sessionUserId = session?.user.id ?? null;
+
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -65,6 +69,18 @@ export function CustomerAccount() {
   const [saveSuccess, setSaveSuccess] = useState("");
 
   useEffect(() => {
+    // Wait until Better Auth has resolved the current session before calling
+    // the customer API. This avoids treating a just-completed login as a guest.
+    if (sessionPending) return;
+
+    if (!sessionUserId) {
+      setProfile(null);
+      setRequiresLogin(true);
+      setLoading(false);
+      return;
+    }
+
+    setRequiresLogin(false);
     const controller = new AbortController();
 
     async function loadProfile() {
@@ -110,7 +126,7 @@ export function CustomerAccount() {
 
     void loadProfile();
     return () => controller.abort();
-  }, []);
+  }, [sessionPending, sessionUserId]);
 
   const memberSince = useMemo(
     () => (profile ? formatMemberSince(profile.createdAt) : ""),
