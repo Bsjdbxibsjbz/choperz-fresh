@@ -46,7 +46,7 @@ export default function AdminTeamPage(){
   finally{setSaving(false);}
  }
  async function toggleStaff(s:Staff){
-  if(s.phoneNumber===phoneNumber&&!s.isActive){setError("Your own account cannot be reactivated from this screen.");return;}
+  if(s.phoneNumber===phoneNumber){setError("You cannot change your own staff account status.");return;}
   const action=s.isActive?"deactivate":"activate";
   if(!window.confirm("Are you sure you want to "+action+" "+s.name+"?"))return;
   setSaving(true);setError("");setNotice("");
