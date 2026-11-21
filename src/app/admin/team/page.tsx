@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { RefreshCw, UserPlus, Users, Truck } from "lucide-react";
 import { useAdminSession } from "../admin-shell";
 import { ActionButton, EmptyState, Field, inputClass, Notice, PageHeading, Panel, selectClass, StatusPill } from "../admin-ui";
@@ -35,7 +35,7 @@ export default function AdminTeamPage(){
   finally{setLoading(false);}
  }
  useEffect(()=>{void load();},[]);
- async function createStaff(e:React.FormEvent){
+ async function createStaff(e:FormEvent){
   e.preventDefault();setSaving(true);setError("");setNotice("");
   try{
    const phone=form.phoneNumber.trim();
