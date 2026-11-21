@@ -453,7 +453,7 @@ export function CheckoutPage() {
 
     if (!selectedAddress?.pincode) {
 
-      setDeliveryState("idle");
+      
 
       return;
 
@@ -461,7 +461,7 @@ export function CheckoutPage() {
 
     if (!/^\d{6}$/.test(selectedAddress.pincode)) {
 
-      setDeliveryState("idle");
+      
 
       return;
 
