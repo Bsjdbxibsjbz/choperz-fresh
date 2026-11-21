@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -20,8 +19,6 @@ type CustomerAuthFormProps = {
 export function CustomerAuthForm({
   callbackUrl,
 }: CustomerAuthFormProps) {
-  const router = useRouter();
-
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
@@ -107,8 +104,17 @@ export function CustomerAuthForm({
         return;
       }
 
-      router.replace(callbackUrl);
-      router.refresh();
+      const signedInUser = sessionResult.data.user;
+      const destination =
+        signedInUser.kind === "STAFF"
+          ? callbackUrl.startsWith("/admin")
+            ? callbackUrl
+            : "/admin"
+          : callbackUrl;
+
+      // Full navigation clears any stale customer page state from the
+      // previous browser session before the server checks the new identity.
+      window.location.replace(destination);
     } catch (err) {
       console.error("OTP verification failed:", err);
       setError("Verification failed. Please try again.");
