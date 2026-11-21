@@ -322,16 +322,8 @@ export function CustomerOrders() {
 
   useEffect(() => {
     // Don't call the orders API until the auth client has resolved the session.
-    if (sessionPending) return;
+    if (sessionPending || !sessionUserId) return;
 
-    if (!sessionUserId) {
-      setOrders([]);
-      setRequiresLogin(true);
-      setLoading(false);
-      return;
-    }
-
-    setRequiresLogin(false);
     void Promise.resolve().then(() => loadOrders());
   }, [loadOrders, sessionPending, sessionUserId]);
 
@@ -403,6 +395,11 @@ export function CustomerOrders() {
     }
   }
 
+  const showLoading =
+    sessionPending || (Boolean(sessionUserId) && loading);
+  const showLogin =
+    (!sessionPending && !sessionUserId) || requiresLogin;
+
   const activeOnPage = useMemo(
     () => orders.filter((order) => !["delivered", "cancelled"].includes(order.status)).length,
     [orders]
@@ -440,7 +437,7 @@ export function CustomerOrders() {
             </Link>
           </div>
 
-          {requiresLogin ? (
+          {showLogin ? (
             <section className="mx-auto flex min-h-[380px] max-w-xl flex-col items-center justify-center rounded-[28px] border border-[#E2E4D9] bg-white px-6 py-12 text-center shadow-[0_18px_60px_rgba(16,45,56,0.05)]">
               <div className="flex size-16 items-center justify-center rounded-2xl bg-[#DCECE5] text-[#168477]">
                 <ShoppingBag className="size-7" />
@@ -504,11 +501,11 @@ export function CustomerOrders() {
                     <button
                       type="button"
                       onClick={() => void loadOrders()}
-                      disabled={loading}
+                      disabled={showLoading}
                       className="flex size-10 items-center justify-center rounded-full border border-[#D8E1DC] text-[#168477] transition hover:bg-[#F2F7F3] disabled:opacity-50"
                       aria-label="Refresh orders"
                     >
-                      <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+                      <RefreshCw className={`size-4 ${showLoading ? "animate-spin" : ""}`} />
                     </button>
                   </div>
                 </div>
@@ -525,7 +522,7 @@ export function CustomerOrders() {
                   </div>
                 )}
 
-                {loading ? (
+                {showLoading ? (
                   <div className="p-5 sm:p-7"><OrderSkeleton /></div>
                 ) : !error && orders.length === 0 ? (
                   <div className="px-6 py-16 text-center">
