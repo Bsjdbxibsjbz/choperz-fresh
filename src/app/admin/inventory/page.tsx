@@ -66,7 +66,7 @@ export default function AdminInventoryPage(){
  }
  // The async inventory requests complete before state is updated.
  // eslint-disable-next-line react-hooks/exhaustive-deps
- useEffect(()=>{void load();},[]);
+ useEffect(()=>{void Promise.resolve().then(()=>load());},[]);
  const stockOutlets=useMemo(()=>{const map=new Map<string,Outlet>();for(const r of stock)map.set(r.outlet.id,r.outlet);for(const o of outlets)map.set(o.id,o);return Array.from(map.values());},[stock,outlets]);
  const filtered=stock.filter(r=>(!outletFilter||r.outlet.id===outletFilter)&&(!search||r.product.name.toLowerCase().includes(search.toLowerCase())||r.outlet.name.toLowerCase().includes(search.toLowerCase())));
  const totalGrams=filtered.reduce((n,r)=>n+r.stock.onHandGrams,0);

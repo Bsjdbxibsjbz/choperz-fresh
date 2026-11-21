@@ -19,8 +19,8 @@ export default function AdminSuppliersPage(){
  const [form,setForm]=useState({name:"",location:"",contact:""});
  async function load(){try{const d=await api("/api/admin/suppliers");setSuppliers(d.suppliers||[]);}catch(e){setError(e instanceof Error?e.message:"Unable to load suppliers");}finally{setLoading(false);}}
  // Initial async data loads update component state after their requests resolve.
- // eslint-disable-next-line react-hooks/exhaustive-deps
- useEffect(()=>{void load();},[]);
+
+ useEffect(()=>{void Promise.resolve().then(()=>load());},[]);
  function openCreate(){setEditing(null);setForm({name:"",location:"",contact:""});setOpen(true);}
  function openEdit(s:Supplier){setEditing(s);setForm({name:s.name,location:s.location||"",contact:s.contact||""});setOpen(true);}
  async function toggleActive(s:Supplier){if(!window.confirm((s.isActive?"Deactivate ":"Reactivate ")+s.name+"?"))return;setSaving(true);setError("");setNotice("");try{await api("/api/admin/suppliers/"+s.id,{method:"PATCH",body:JSON.stringify({isActive:!s.isActive})});setNotice("Supplier status updated.");await load();}catch(e){setError(e instanceof Error?e.message:"Unable to update supplier");}finally{setSaving(false);}}

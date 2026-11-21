@@ -22,7 +22,6 @@ export default function AdminDashboard() {
  const canInventory=permissions.includes("inventory.read");
 
  async function load(){
-  setLoading(true);setError("");
   const jobs: Promise<void>[]=[];
   if(canOrders) jobs.push(fetch("/api/admin/orders?page=1&pageSize=100",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||"Orders could not be loaded");setOrders(d.data||[]);setOrderTotal(d.pagination?.total||0);}));
   if(canInventory) jobs.push(fetch("/api/admin/inventory?page=1&limit=100",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||"Inventory could not be loaded");setInventory(d.inventory||[]);}));
@@ -30,7 +29,7 @@ export default function AdminDashboard() {
  }
  // Initial async data loads update component state after their requests resolve.
  // eslint-disable-next-line react-hooks/exhaustive-deps
- useEffect(()=>{void load();},[]);
+ useEffect(()=>{void Promise.resolve().then(()=>load());},[]);
  const openOrders=orders.filter(o=>!["delivered","cancelled"].includes(o.status)).length;
  const lowStock=inventory.filter(i=>i.stock.onHandGrams<=1000);
  const recent=orders.slice(0,7);
@@ -40,7 +39,7 @@ export default function AdminDashboard() {
   {href:"/admin/catalogue",label:"Product catalogue",desc:"Review products, variants and quality status",icon:Package,perm:"products.read"},
  ];
  return <div>
-  <PageHeading eyebrow="COMMAND CENTRE" title="Good to see you." description="A live operational snapshot of the Choperz Fresh business." action={<button onClick={load} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8E1DC] bg-white px-4 text-xs font-bold hover:bg-[#F8FAF8]"><RefreshCw size={14} className={loading?"animate-spin":""}/> Refresh data</button>}/>
+  <PageHeading eyebrow="COMMAND CENTRE" title="Good to see you." description="A live operational snapshot of the Choperz Fresh business." action={<button onClick={()=>{setLoading(true);setError("");void load();}} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D8E1DC] bg-white px-4 text-xs font-bold hover:bg-[#F8FAF8]"><RefreshCw size={14} className={loading?"animate-spin":""}/> Refresh data</button>}/>
   {error&&<div className="mb-5"><Notice kind="error">{error}</Notice></div>}
   <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
    {canOrders&&<MetricCard label="All customer orders" value={loading?"—":orderTotal.toLocaleString("en-IN")} note="Total count reported by the order service" icon={ShoppingBag} tone="blue"/>}

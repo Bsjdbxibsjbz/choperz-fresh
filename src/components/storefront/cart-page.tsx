@@ -132,7 +132,7 @@ export function CartPage() {
   }, []);
 
   useEffect(() => {
-    void loadCart();
+    void Promise.resolve().then(() => loadCart());
 
     // Refresh cart if another storefront component adds an item.
     const handleCartUpdate = () => {

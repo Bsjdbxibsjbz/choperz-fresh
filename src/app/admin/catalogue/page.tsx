@@ -48,7 +48,7 @@ export default function AdminCataloguePage(){
  }
  // Loader state updates happen after the async catalogue requests resolve.
  // eslint-disable-next-line react-hooks/exhaustive-deps
- useEffect(()=>{void load();},[category]);
+ useEffect(()=>{void Promise.resolve().then(()=>load());},[category]);
  function openEdit(p:Product){setEditor(p);setForm({name:p.name,localName:p.localName||"",englishName:p.englishName||"",scientificName:p.scientificName||"",description:p.description||"",sourceInfo:p.sourceInfo||"",storageInstructions:p.storageInstructions||"",categoryId:p.category.id,isActive:p.isActive,isPlaceholder:p.isPlaceholder,isSourceVerified:p.isSourceVerified,variants:p.variants.map(v=>({...v,priceRupees:(v.pricePaise/100).toFixed(2)}))});}
  async function saveProduct(e:FormEvent){
   e.preventDefault();if(!editor)return;setSaving(true);setError("");setNotice("");

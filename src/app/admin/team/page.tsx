@@ -37,7 +37,7 @@ export default function AdminTeamPage(){
  }
  // The async team requests resolve before load() updates component state.
  // eslint-disable-next-line react-hooks/exhaustive-deps
- useEffect(()=>{void load();},[]);
+ useEffect(()=>{void Promise.resolve().then(()=>load());},[]);
  async function createStaff(e:FormEvent){
   e.preventDefault();setSaving(true);setError("");setNotice("");
   try{

@@ -21,8 +21,8 @@ export default function AdminOutletsPage(){
  const [form,setForm]=useState({code:"",name:"",addressLine:"",city:"",pincode:"",latitude:"",longitude:"",maxRadiusKm:""});
  async function load(){try{const d=await api("/api/admin/outlets");setOutlets(d.outlets||[]);}catch(e){setError(e instanceof Error?e.message:"Unable to load outlets");}finally{setLoading(false);}}
  // Initial async data loads update component state after their requests resolve.
- // eslint-disable-next-line react-hooks/exhaustive-deps
- useEffect(()=>{void load();},[]);
+
+ useEffect(()=>{void Promise.resolve().then(()=>load());},[]);
  async function loadZones(id:string){try{const d=await api("/api/admin/outlets/"+id+"/zones");setZones(p=>({...p,[id]:d.zones||[]}));}catch(e){setError(e instanceof Error?e.message:"Unable to load delivery zones");}}
  async function toggleExpand(id:string){if(expanded===id){setExpanded("");return;}setExpanded(id);if(!zones[id])await loadZones(id);}
  async function createOutlet(e:FormEvent){e.preventDefault();setSaving(true);setError("");setNotice("");try{await api("/api/admin/outlets",{method:"POST",body:JSON.stringify({code:form.code,name:form.name,addressLine:form.addressLine||null,city:form.city,pincode:form.pincode||null,latitude:Number(form.latitude),longitude:Number(form.longitude),maxRadiusKm:form.maxRadiusKm?Number(form.maxRadiusKm):null,isActive:true})});setNotice("Outlet created successfully.");setCreateOpen(false);setForm({code:"",name:"",addressLine:"",city:"",pincode:"",latitude:"",longitude:"",maxRadiusKm:""});await load();}catch(e){setError(e instanceof Error?e.message:"Unable to create outlet");}finally{setSaving(false);}}

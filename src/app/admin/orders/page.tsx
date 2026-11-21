@@ -48,7 +48,7 @@ export default function AdminOrdersPage(){
  }
  // The order request completes before load() updates the table state.
  // eslint-disable-next-line react-hooks/exhaustive-deps
- useEffect(()=>{void load();},[page,status,payment]);
+ useEffect(()=>{void Promise.resolve().then(()=>load());},[page,status,payment]);
  async function openOrder(id:string){
   setBusy("detail");setError("");setNotice("");
   try{const d=await requestJson("/api/admin/orders/"+encodeURIComponent(id));setSelected(d.order);}
