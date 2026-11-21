@@ -9,7 +9,7 @@ type Staff={id:string;userId:string;name:string;phoneNumber:string|null;phoneNum
 type DriverCurrentAssignment={id:string;orderId:string;assignedAt:string;order:{id:string;orderNumber:string;status:string;shipName:string;shipCity:string;shipPincode:string}};
 type Driver={id:string;availability:string;account:{name:string;phoneNumber:string|null;phoneNumberVerified:boolean;isActive:boolean};currentAssignment:DriverCurrentAssignment|null;assignmentCount:number;canReceiveAssignment:boolean};
 type DriverUpdatePayload={isActive?:boolean;availability?:"AVAILABLE"|"OFFLINE"};
-type Outlet={id:string;code:string;name:string};
+type Outlet={id:string;code:string;name:string;isActive:boolean};
 async function api(url:string,init?:RequestInit){const r=await fetch(url,{...init,credentials:"include",cache:"no-store",headers:{"Content-Type":"application/json",...(init?.headers||{})}});const d=await r.json().catch(()=>({error:"Invalid response"}));if(!r.ok)throw new Error(d.error||"Request failed");return d;}
 
 export default function AdminTeamPage(){
