@@ -2,15 +2,11 @@
 import "server-only";
 
 import { headers } from "next/headers";
-import { connection } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function requireCustomer() {
-  // Defer request-specific customer authentication to request time.
-  await connection();
-
   // Check the current Better Auth session.
   const session = await auth.api.getSession({
     headers: await headers(),
