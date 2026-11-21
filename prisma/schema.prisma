@@ -1,0 +1,785 @@
+// Choperz Fresh — PROTOTYPE schema (Phase 2)
+// Money = integer paise. Weight/stock = integer grams.
+// Deferred to later migrations: purchase_orders(+items), stock_transfers, stock_adjustments,
+// delivery_assignments(+history), coupons(+redemptions), notifications, product_attributes.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────── ENUMS ─────────────
+enum UserKind {
+  CUSTOMER
+  STAFF
+}
+
+enum ImageKind {
+  WHOLE
+  FILLET
+  PRODUCT
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum MovementType {
+  RECEIPT
+  RESERVE
+  RELEASE
+  SALE_DEDUCT
+  SALE_RETURN
+  ADJUSTMENT
+  WASTAGE
+  DAMAGE
+  EXPIRY
+  TRANSFER_OUT
+  TRANSFER_IN
+}
+
+enum ReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+enum DriverAvailability {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum DeliveryAssignmentStatus {
+  ACTIVE
+  REASSIGNED
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  processing
+  packed
+  picked_up
+  out_for_delivery
+  delivered
+  cancelled
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  COD
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+// ───────────── AUTH (Better Auth core tables) ─────────────
+// NOTE: compare with `npx @better-auth/cli generate` in Phase 3
+// so these match the installed Better Auth version exactly.
+model User {
+  id                  String   @id
+  name                String
+  email               String   @unique
+  emailVerified       Boolean  @default(false)
+  image               String?
+  phoneNumber         String?
+  phoneNumberVerified Boolean?
+  kind                UserKind @default(CUSTOMER)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  sessions                Session[]
+  accounts                Account[]
+  profile                 CustomerProfile?
+  addresses               Address[]
+  cart                    Cart?
+  orders                  Order[]
+  staffProfile            StaffProfile?
+  deliveryAssignmentsMade DeliveryAssignment[] @relation("DeliveryAssignmentAssignedBy")
+
+  @@unique([phoneNumber])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ───────────── CUSTOMERS ─────────────
+model CustomerProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_profiles")
+}
+
+model Address {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String    @default("Home")
+  line1     String
+  line2     String?
+  landmark  String?
+  city      String    @default("Mysuru")
+  pincode   String
+  latitude  Float?
+  longitude Float?
+  isDefault Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// ───────────── CATALOG ─────────────
+model Category {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  name      String
+  parentId  String?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  sortOrder Int        @default(0)
+  isActive  Boolean    @default(true)
+  products  Product[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Product {
+  id                  String    @id @default(cuid())
+  slug                String    @unique
+  name                String
+  localName           String?
+  englishName         String?
+  scientificName      String?
+  description         String?
+  sourceInfo          String?
+  storageInstructions String?
+  categoryId          String
+  category            Category  @relation(fields: [categoryId], references: [id])
+  isPlaceholder       Boolean   @default(true)
+  isSourceVerified    Boolean   @default(false)
+  isActive            Boolean   @default(true)
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  variants       ProductVariant[]
+  images         ProductImage[]
+  nutrition      ProductNutrition?
+  cutOptions     ProductCutOption[]
+  inventory      Inventory[]
+  batches        InventoryBatch[]
+  movements      StockMovement[]
+  reservations   StockReservation[]
+  recipeProducts RecipeProduct[]
+  orderItems     OrderItem[]
+
+  @@index([categoryId, isActive])
+  @@map("products")
+}
+
+model ProductVariant {
+  id          String      @id @default(cuid())
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id])
+  sku         String      @unique
+  label       String
+  weightGrams Int
+  pricePaise  Int
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@unique([productId, weightGrams])
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id            String    @id @default(cuid())
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url           String
+  kind          ImageKind @default(PRODUCT)
+  alt           String
+  sortOrder     Int       @default(0)
+  isPlaceholder Boolean   @default(true)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model ProductNutrition {
+  id         String  @id @default(cuid())
+  productId  String  @unique
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  energyKcal Float?
+  proteinG   Float?
+  fatG       Float?
+  carbsG     Float?
+  isVerified Boolean @default(false)
+  source     String?
+
+  @@map("product_nutrition")
+}
+
+model CutOption {
+  id              String             @id @default(cuid())
+  name            String             @unique
+  extraPricePaise Int                @default(0)
+  products        ProductCutOption[]
+  cartItems       CartItem[]
+
+  @@map("cut_options")
+}
+
+model ProductCutOption {
+  productId   String
+  cutOptionId String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cutOption   CutOption @relation(fields: [cutOptionId], references: [id])
+
+  @@id([productId, cutOptionId])
+  @@map("product_cut_options")
+}
+
+// ───────────── SUPPLIERS / SOURCING ─────────────
+model Supplier {
+  id       String           @id @default(cuid())
+  name     String
+  location String?
+  contact  String?
+  isActive Boolean          @default(true)
+  batches  InventoryBatch[]
+
+  @@map("suppliers")
+}
+
+// Traceability fields are nullable on purpose; "traceable" is COMPUTED from what is recorded.
+model InventoryBatch {
+  id            String            @id @default(cuid())
+  batchCode     String            @unique
+  productId     String
+  product       Product           @relation(fields: [productId], references: [id])
+  supplierId    String?
+  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
+  landingDate   DateTime?
+  purchaseDate  DateTime?
+  receivedGrams Int
+  costPaise     Int?
+  createdAt     DateTime          @default(now())
+  allocations   BatchAllocation[]
+  movements     StockMovement[]
+
+  @@index([productId])
+  @@map("inventory_batches")
+}
+
+model BatchAllocation {
+  id       String         @id @default(cuid())
+  batchId  String
+  batch    InventoryBatch @relation(fields: [batchId], references: [id])
+  outletId String
+  outlet   Outlet         @relation(fields: [outletId], references: [id])
+  grams    Int
+
+  @@unique([batchId, outletId])
+  @@index([batchId])
+  @@index([outletId])
+  @@map("batch_allocations")
+}
+
+// ───────────── OUTLETS ─────────────
+model Outlet {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  addressLine String?
+  city        String?
+  pincode     String?
+  latitude    Float?
+  longitude   Float?
+  maxRadiusKm Float?
+  isActive    Boolean @default(true)
+
+  zones        OutletDeliveryZone[]
+  inventory    Inventory[]
+  allocations  BatchAllocation[]
+  movements    StockMovement[]
+  reservations StockReservation[]
+  orders       Order[]
+  staff        StaffProfile[]
+
+  @@map("outlets")
+}
+
+model OutletDeliveryZone {
+  id       String  @id @default(cuid())
+  outletId String
+  outlet   Outlet  @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  pincode  String
+  isActive Boolean @default(true)
+
+  // Legacy field retained for database compatibility.
+  // CHOPERZ FRESH delivery is free; this field is not used.
+  deliveryFeePaise Int?
+
+  @@unique([outletId, pincode])
+  @@map("outlet_delivery_zones")
+}
+
+// ───────────── INVENTORY ─────────────
+// CHECK constraints are added in the migration SQL (see README-PHASE2).
+model Inventory {
+  id            String   @id @default(cuid())
+  outletId      String
+  outlet        Outlet   @relation(fields: [outletId], references: [id])
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  onHandGrams   Int      @default(0)
+  reservedGrams Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([outletId, productId])
+  @@map("inventory")
+}
+
+// Append-only ledger. gramsDelta may be negative.
+model StockMovement {
+  id         String          @id @default(cuid())
+  outletId   String
+  outlet     Outlet          @relation(fields: [outletId], references: [id])
+  productId  String
+  product    Product         @relation(fields: [productId], references: [id])
+  type       MovementType
+  gramsDelta Int
+  batchId    String?
+  batch      InventoryBatch? @relation(fields: [batchId], references: [id])
+  orderId    String?
+  note       String?
+  actorId    String?
+  createdAt  DateTime        @default(now())
+
+  @@index([outletId, productId, createdAt])
+  @@map("stock_movements")
+}
+
+model StockReservation {
+  id        String            @id @default(cuid())
+  orderId   String
+  order     Order             @relation(fields: [orderId], references: [id])
+  outletId  String
+  outlet    Outlet            @relation(fields: [outletId], references: [id])
+  productId String
+  product   Product           @relation(fields: [productId], references: [id])
+  grams     Int
+  status    ReservationStatus @default(ACTIVE)
+  expiresAt DateTime
+  createdAt DateTime          @default(now())
+
+  @@index([status, expiresAt])
+  @@index([orderId])
+  @@map("stock_reservations")
+}
+
+// ───────────── RECIPES ─────────────
+model Recipe {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  name        String
+  imageUrl    String?
+  description String?
+  prepMinutes Int
+  cookMinutes Int
+  servings    Int
+  difficulty  Difficulty @default(EASY)
+  isPublished Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  products     RecipeProduct[]
+  ingredients  RecipeIngredient[]
+  instructions RecipeInstruction[]
+
+  @@map("recipes")
+}
+
+model RecipeProduct {
+  recipeId         String
+  productId        String
+  recipe           Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product          Product @relation(fields: [productId], references: [id])
+  recommendedGrams Int
+  sortOrder        Int     @default(0)
+
+  @@id([recipeId, productId])
+  @@index([productId, sortOrder])
+  @@map("recipe_products")
+}
+
+model RecipeIngredient {
+  id        String  @id @default(cuid())
+  recipeId  String
+  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name      String
+  quantity  String
+  unit      String?
+  sortOrder Int     @default(0)
+
+  @@index([recipeId])
+  @@map("recipe_ingredients")
+}
+
+model RecipeInstruction {
+  id       String @id @default(cuid())
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  step     Int
+  text     String
+
+  @@unique([recipeId, step])
+  @@map("recipe_instructions")
+}
+
+// ───────────── SHOPPING ─────────────
+// Carts never store prices; totals are always recomputed server-side.
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt DateTime   @updatedAt
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id          String         @id @default(cuid())
+  cartId      String
+  cart        Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  cutOptionId String?
+  cutOption   CutOption?     @relation(fields: [cutOptionId], references: [id])
+  quantity    Int
+
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+// ───────────── ORDERS ─────────────
+model Order {
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  outletId      String?
+  outlet        Outlet?       @relation(fields: [outletId], references: [id], onDelete: SetNull)
+  status        OrderStatus   @default(pending)
+  paymentStatus PaymentStatus @default(UNPAID)
+  paymentMethod PaymentMethod
+
+  subtotalPaise    Int
+  deliveryFeePaise Int @default(0)
+  discountPaise    Int @default(0)
+  totalPaise       Int
+
+  // Delivery address snapshot
+  shipName      String
+  shipPhone     String
+  shipLine1     String
+  shipLine2     String?
+  shipLandmark  String?
+  shipCity      String
+  shipPincode   String
+  shipLatitude  Float?
+  shipLongitude Float?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items               OrderItem[]
+  history             OrderStatusHistory[]
+  payments            Payment[]
+  reservations        StockReservation[]
+  deliveryAssignments DeliveryAssignment[]
+
+  @@index([userId, createdAt])
+  @@index([outletId, status])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+// Snapshot: historical orders never change when the catalog changes.
+model OrderItem {
+  id             String          @id @default(cuid())
+  orderId        String
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product         @relation(fields: [productId], references: [id])
+  variantId      String?
+  variant        ProductVariant? @relation(fields: [variantId], references: [id])
+  productName    String
+  variantLabel   String
+  weightGrams    Int
+  unitPricePaise Int
+  cutName        String?
+  cutExtraPaise  Int             @default(0)
+  quantity       Int
+  lineTotalPaise Int
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id         String       @id @default(cuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorId    String?
+  note       String?
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+// ───────────── PAYMENTS ─────────────
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id])
+  provider          String        @default("razorpay")
+  razorpayOrderId   String?       @unique
+  razorpayPaymentId String?       @unique
+  amountPaise       Int
+  status            PaymentStatus @default(PENDING)
+  failureReason     String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  events  PaymentEvent[]
+  refunds Refund[]
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+model PaymentEvent {
+  id              String    @id @default(cuid())
+  providerEventId String    @unique
+  type            String
+  payload         Json
+  paymentId       String?
+  payment         Payment?  @relation(fields: [paymentId], references: [id])
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@map("payment_events")
+}
+
+model Refund {
+  id               String       @id @default(cuid())
+  paymentId        String
+  payment          Payment      @relation(fields: [paymentId], references: [id])
+  amountPaise      Int
+  status           RefundStatus @default(PENDING)
+  razorpayRefundId String?      @unique
+  reason           String?
+  createdAt        DateTime     @default(now())
+
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+// ───────────── ADMIN / RBAC ─────────────
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  permissions RolePermission[]
+  staff       StaffProfile[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id    String           @id @default(cuid())
+  key   String           @unique
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model StaffProfile {
+  id            String         @id @default(cuid())
+  userId        String         @unique
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId        String
+  role          Role           @relation(fields: [roleId], references: [id])
+  outletId      String?
+  outlet        Outlet?        @relation(fields: [outletId], references: [id])
+  isActive      Boolean        @default(true)
+  driverProfile DriverProfile?
+
+  @@map("staff_profiles")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+// ───────────── DRIVER PROFILES ─────────────
+
+model DriverProfile {
+  id             String       @id @default(cuid())
+  staffProfileId String       @unique
+  staffProfile   StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Restrict)
+
+  availability DriverAvailability @default(OFFLINE)
+
+  assignments DeliveryAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("driver_profiles")
+}
+
+// ───────────── DELIVERY ASSIGNMENT HISTORY ─────────────
+
+model DeliveryAssignment {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  driverProfileId String
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Restrict)
+
+  assignedById String
+  assignedBy   User   @relation("DeliveryAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  status DeliveryAssignmentStatus @default(ACTIVE)
+
+  assignedAt  DateTime  @default(now())
+  completedAt DateTime?
+  note        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId, status])
+  @@index([driverProfileId, status])
+  @@index([assignedById, assignedAt])
+  @@map("delivery_assignments")
+}
