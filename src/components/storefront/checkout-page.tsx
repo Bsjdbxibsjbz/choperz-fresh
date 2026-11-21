@@ -293,7 +293,7 @@ export function CheckoutPage() {
 
   const selectedDeliveryAddressId = selectedAddress?.id ?? "";
   const selectedDeliveryPincode = selectedAddress?.pincode ?? "";
-  const hasValidSelectedPincode = /^\\d{6}$/.test(selectedDeliveryPincode);
+  const hasValidSelectedPincode = /^\d{6}$/.test(selectedDeliveryPincode);
   const visibleDeliveryState: DeliveryState = hasValidSelectedPincode ? deliveryState : "idle";
 
   // Load the customer's cart and saved addresses.
