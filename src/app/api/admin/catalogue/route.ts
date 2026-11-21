@@ -220,6 +220,9 @@ const createProductSchema = z.object({
   if (new Set(weights).size !== weights.length) {
     ctx.addIssue({ code: "custom", path: ["variants"], message: "Each weight must be unique." });
   }
+  if (data.cutOptionIds && new Set(data.cutOptionIds).size !== data.cutOptionIds.length) {
+    ctx.addIssue({ code: "custom", path: ["cutOptionIds"], message: "Cutting options must be unique." });
+  }
 });
 
 export async function POST(request: Request) {
@@ -279,7 +282,9 @@ export async function POST(request: Request) {
           },
           ...(data.cutOptionIds?.length ? {
             cutOptions: {
-              create: data.cutOptionIds.map((cutOptionId) => ({ cutOptionId })),
+              create: data.cutOptionIds.map((cutOptionId) => ({
+                cutOption: { connect: { id: cutOptionId } },
+              })),
             },
           } : {}),
         },
