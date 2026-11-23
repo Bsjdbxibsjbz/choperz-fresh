@@ -139,18 +139,25 @@ export function StorefrontHeader() {
             </Link>
 
             {!sessionPending && session?.user && (
-              <button
-                type="button"
-                onClick={() => void handleSignOut()}
-                disabled={signingOut}
-                className="inline-flex items-center gap-2 text-sm font-medium text-[#60717A] transition-colors hover:text-[#B84C3A] disabled:cursor-wait disabled:opacity-50"
-              >
-                <LogOut className="size-[17px]" />
-                <span>{signingOut ? "Signing out…" : "Sign out"}</span>
-              </button>
-              {signOutError && (
-                <span role="alert" className="max-w-48 text-xs font-medium text-[#A24E3E]">{signOutError}</span>
-              )}
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  disabled={signingOut}
+                  className="inline-flex items-center gap-2 text-sm font-medium text-[#60717A] transition-colors hover:text-[#B84C3A] disabled:cursor-wait disabled:opacity-50"
+                >
+                  <LogOut className="size-[17px]" />
+                  <span>{signingOut ? "Signing out…" : "Sign out"}</span>
+                </button>
+                {signOutError && (
+                  <span
+                    role="alert"
+                    className="max-w-48 text-xs font-medium text-[#A24E3E]"
+                  >
+                    {signOutError}
+                  </span>
+                )}
+              </>
             )}
 
             <Link
