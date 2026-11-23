@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 import {
   ArrowRight,
   BadgeCheck,
@@ -53,6 +54,9 @@ function formatMemberSince(value: string) {
 }
 
 export function CustomerAccount() {
+  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const sessionUserId = session?.user.id ?? null;
+
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -65,6 +69,10 @@ export function CustomerAccount() {
   const [saveSuccess, setSaveSuccess] = useState("");
 
   useEffect(() => {
+    // Wait until Better Auth has resolved the current session before calling
+    // the customer API. This avoids treating a just-completed login as a guest.
+    if (sessionPending || !sessionUserId) return;
+
     const controller = new AbortController();
 
     async function loadProfile() {
@@ -110,7 +118,12 @@ export function CustomerAccount() {
 
     void loadProfile();
     return () => controller.abort();
-  }, []);
+  }, [sessionPending, sessionUserId]);
+
+  const showLoading =
+    sessionPending || (Boolean(sessionUserId) && loading);
+  const showLogin =
+    (!sessionPending && !sessionUserId) || requiresLogin;
 
   const memberSince = useMemo(
     () => (profile ? formatMemberSince(profile.createdAt) : ""),
@@ -205,14 +218,14 @@ export function CustomerAccount() {
           </Link>
         </div>
 
-        {loading ? (
+        {showLoading ? (
           <div className="flex min-h-[360px] items-center justify-center rounded-[28px] border border-[#E2E4D9] bg-white">
             <div className="text-center">
               <Loader2 className="mx-auto size-7 animate-spin text-[#168477]" />
               <p className="mt-4 text-sm text-[#71817D]">Loading your account...</p>
             </div>
           </div>
-        ) : requiresLogin ? (
+        ) : showLogin ? (
           <section className="mx-auto flex min-h-[380px] max-w-xl flex-col items-center justify-center rounded-[28px] border border-[#E2E4D9] bg-white px-6 py-12 text-center shadow-[0_18px_60px_rgba(16,45,56,0.05)]">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-[#DCECE5] text-[#168477]">
               <UserRound className="size-7" />
@@ -236,7 +249,7 @@ export function CustomerAccount() {
               <CircleAlert className="mt-0.5 size-5 shrink-0 text-[#B66C43]" />
               <div>
                 <h2 className="font-[family-name:var(--font-manrope)] text-lg font-bold text-[#102D38]">
-                  We couldn't load your account
+                  We couldn&apos;t load your account
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-[#71817D]">{loadError}</p>
                 <button
@@ -295,7 +308,7 @@ export function CustomerAccount() {
                         className="h-12 w-full rounded-xl border border-[#CFDCD5] bg-[#FBFCF9] px-4 text-sm text-[#102D38] outline-none transition focus:border-[#168477] focus:ring-2 focus:ring-[#168477]/10"
                         placeholder="Enter your name"
                       />
-                      <p className="mt-2 text-[11px] text-[#87928B]">This is the name we'll use for your orders.</p>
+                      <p className="mt-2 text-[11px] text-[#87928B]">This is the name we&apos;ll use for your orders.</p>
                     </div>
 
                     <div className="rounded-xl border border-[#E5EAE4] bg-[#F8FAF6] p-4">
@@ -306,7 +319,7 @@ export function CustomerAccount() {
                         {profile.phoneNumber || "Not added"}
                       </p>
                       <p className="mt-1 text-[11px] leading-5 text-[#87928B]">
-                        Your verified mobile number can't be changed here.
+                        Your verified mobile number can&apos;t be changed here.
                       </p>
                     </div>
 
@@ -411,7 +424,7 @@ export function CustomerAccount() {
                   </div>
                   <div>
                     <h3 className="font-[family-name:var(--font-manrope)] text-base font-extrabold text-[#102D38]">Need something fresh?</h3>
-                    <p className="mt-0.5 text-xs text-[#87928B]">Explore today's selection.</p>
+                    <p className="mt-0.5 text-xs text-[#87928B]">Explore today&apos;s selection.</p>
                   </div>
                 </div>
                 <Link

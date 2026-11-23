@@ -3,11 +3,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { ArrowRight, Fish, Sparkles } from "lucide-react";
 
 export function HeroSection() {
-  const shouldReduceMotion = useReducedMotion();
 
  const fadeUp = {
   initial: false,

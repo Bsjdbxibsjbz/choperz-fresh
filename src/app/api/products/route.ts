@@ -1,5 +1,5 @@
 
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
@@ -11,6 +11,8 @@ const querySchema = z.object({
 });
 
 export async function GET(request: Request) {
+  // This endpoint depends on request-specific data and must run at request time.
+  await connection();
   try {
     const url = new URL(request.url);
 

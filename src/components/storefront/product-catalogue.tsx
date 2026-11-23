@@ -128,8 +128,11 @@ function CatalogueProductCard({
   const [feedback, setFeedback] = useState("");
   const [needsLogin, setNeedsLogin] = useState(false);
 
+  const effectiveVariantId = product.variants.some((variant) => variant.id === variantId)
+    ? variantId
+    : product.variants[0]?.id ?? "";
   const selectedVariant = product.variants.find(
-    (variant) => variant.id === variantId
+    (variant) => variant.id === effectiveVariantId
   );
 
   const inStock = product.stockStatus === "IN_STOCK";
@@ -144,12 +147,6 @@ function CatalogueProductCard({
   );
 
   const startingPrice = getStartingPrice(product);
-
-  useEffect(() => {
-    if (!product.variants.some((variant) => variant.id === variantId)) {
-      setVariantId(product.variants[0]?.id ?? "");
-    }
-  }, [product.variants, variantId]);
 
   async function addToCart() {
     if (!selectedVariant || !inStock || isAdding) return;
@@ -283,7 +280,7 @@ function CatalogueProductCard({
 
             <select
               id={`variant-${product.id}`}
-              value={variantId}
+              value={effectiveVariantId}
               onChange={(event) => {
                 setVariantId(event.target.value);
                 setFeedback("");
@@ -962,7 +959,7 @@ export function ProductCatalogue({
             {!loading && error && (
               <div className="rounded-2xl border border-[#D8E1DC] bg-white p-10 text-center">
                 <p className="font-semibold text-[#102D38]">
-                  We couldn't load the catalogue.
+                  We couldn&apos;t load the catalogue.
                 </p>
                 <p className="mt-2 text-sm text-[#64746F]">{error}</p>
                 <button
@@ -1068,7 +1065,7 @@ export function ProductCatalogue({
                 </h3>
 
                 <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#64746F]">
-                  We couldn't find products matching those filters.
+                  We couldn&apos;t find products matching those filters.
                   Try another search or explore the full collection.
                 </p>
 

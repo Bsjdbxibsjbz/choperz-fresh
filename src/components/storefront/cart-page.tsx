@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -77,10 +78,13 @@ async function readResponse(
 }
 
 export function CartPage() {
+  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const sessionUserId = session?.user.id ?? null;
+
   const [cart, setCart] = useState<CartData | null>(null);
   const [loading, setLoading] = useState(true);
   const [requiresLogin, setRequiresLogin] = useState(false);
-  const [authMessage, setAuthMessage] = useState("");
+  const [authMessage, setAuthMessage] = useState("Please sign in to view your cart.");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [mutatingItemId, setMutatingItemId] = useState<string | null>(
@@ -89,11 +93,7 @@ export function CartPage() {
 
   // Fetch the customer's saved cart.
   const loadCart = useCallback(async (showLoading = true) => {
-    if (showLoading) {
-      setLoading(true);
-    }
-
-    setError(null);
+    if (showLoading) setLoading(true);
 
     try {
       const response = await fetch("/api/cart", {
@@ -119,6 +119,7 @@ export function CartPage() {
         );
       }
 
+      setError(null);
       setRequiresLogin(false);
       setAuthMessage("");
       setCart(payload.cart);
@@ -137,25 +138,23 @@ export function CartPage() {
   }, []);
 
   useEffect(() => {
-    void loadCart();
+    // Wait for Better Auth to resolve before requesting the customer's cart.
+    if (sessionPending || !sessionUserId) return;
 
+    void Promise.resolve().then(() => loadCart());
+  }, [loadCart, sessionPending, sessionUserId]);
+
+  useEffect(() => {
     // Refresh cart if another storefront component adds an item.
     const handleCartUpdate = () => {
-      void loadCart(false);
+      if (sessionUserId) void loadCart(false);
     };
 
-    window.addEventListener(
-      "choperz:cart-updated",
-      handleCartUpdate
-    );
-
+    window.addEventListener("choperz:cart-updated", handleCartUpdate);
     return () => {
-      window.removeEventListener(
-        "choperz:cart-updated",
-        handleCartUpdate
-      );
+      window.removeEventListener("choperz:cart-updated", handleCartUpdate);
     };
-  }, [loadCart]);
+  }, [loadCart, sessionUserId]);
 
   // Update the quantity of a cart item.
   async function updateQuantity(
@@ -242,6 +241,11 @@ export function CartPage() {
     }
   }
 
+  const showLoading =
+    sessionPending || (Boolean(sessionUserId) && loading);
+  const showLogin =
+    (!sessionPending && !sessionUserId) || requiresLogin;
+
   const items = cart?.items ?? [];
   const hasUnavailableItems =
     (cart?.unavailableItemsCount ?? 0) > 0;
@@ -278,7 +282,7 @@ export function CartPage() {
               </p>
             </div>
 
-            {!loading && cart && (
+            {!showLoading && cart && (
               <div className="flex items-center gap-2 text-sm font-medium text-[#64746F]">
                 <ShoppingBag className="h-4 w-4 text-[#168477]" />
                 {cart.totalQuantity}{" "}
@@ -292,7 +296,7 @@ export function CartPage() {
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-12">
 
         {/* Loading state */}
-        {loading && (
+        {showLoading && (
           <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
             <div className="space-y-4">
               {[1, 2].map((item) => (
@@ -308,7 +312,7 @@ export function CartPage() {
         )}
 
         {/* Login required */}
-        {!loading && requiresLogin && (
+        {!showLoading && showLogin && (
           <section className="mx-auto max-w-xl rounded-3xl border border-[#E2E5DB] bg-white px-6 py-14 text-center shadow-sm sm:px-12">
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#DCECE5] text-[#168477]">
               <ShieldCheck className="h-8 w-8" />
@@ -333,7 +337,7 @@ export function CartPage() {
         )}
 
         {/* Error state */}
-        {!loading && !requiresLogin && error && !cart && (
+        {!showLoading && !showLogin && error && !cart && (
           <section className="mx-auto max-w-xl rounded-3xl border border-red-100 bg-white px-6 py-14 text-center">
             <h2 className="text-xl font-bold text-[#102D38]">
               We couldn&apos;t load your cart
@@ -354,8 +358,8 @@ export function CartPage() {
         )}
 
         {/* Empty cart */}
-        {!loading &&
-          !requiresLogin &&
+        {!showLoading &&
+          !showLogin &&
           !error &&
           cart &&
           items.length === 0 && (
@@ -388,8 +392,8 @@ export function CartPage() {
           )}
 
         {/* Populated cart */}
-        {!loading &&
-          !requiresLogin &&
+        {!showLoading &&
+          !showLogin &&
           cart &&
           items.length > 0 && (
             <>

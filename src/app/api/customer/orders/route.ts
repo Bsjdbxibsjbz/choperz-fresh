@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
@@ -25,6 +25,8 @@ const listQuerySchema = z.object({
 // Lists the signed-in customer's own orders, newest first. Each order carries
 // a short item preview; the full item list is on the order detail endpoint.
 export async function GET(request: Request) {
+  // This endpoint depends on request-specific data and must run at request time.
+  await connection();
   try {
     const access = await requireCustomer();
     if (!access.authorized) {

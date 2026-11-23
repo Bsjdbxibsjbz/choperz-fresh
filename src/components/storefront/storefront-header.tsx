@@ -3,10 +3,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowRight,
   Menu,
+  LogOut,
   Search,
   ShoppingBag,
   UserRound,
@@ -23,7 +26,55 @@ const navigation = [
 ];
 
 export function StorefrontHeader() {
+  const router = useRouter();
+  const { data: session, isPending: sessionPending } = authClient.useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
+
+  const isGuest = !sessionPending && !session?.user;
+  const accountHref = sessionPending
+    ? "/account"
+    : session?.user.kind === "STAFF"
+      ? "/admin"
+      : session?.user
+        ? "/account"
+        : "/login";
+  const accountLabel = sessionPending
+    ? "Account"
+    : session?.user.kind === "STAFF"
+      ? "Dashboard"
+      : session?.user
+        ? "Account"
+        : "Sign in";
+  const accountActionClassName = isGuest
+    ? "inline-flex h-11 items-center gap-2 rounded-full bg-[#168477] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#102D38]"
+    : "flex items-center gap-2 text-sm font-medium text-[#102D38] transition-colors hover:text-[#168477]";
+
+  async function handleSignOut() {
+    if (signingOut) return;
+
+    setSigningOut(true);
+    setSignOutError("");
+
+    try {
+      const result = await authClient.signOut();
+      if (result.error) {
+        throw new Error(result.error.message || "Unable to sign out. Please try again.");
+      }
+
+      setMobileMenuOpen(false);
+      // Force a fresh document request so no stale client session state remains.
+      window.location.replace("/");
+    } catch (error) {
+      console.error("Customer sign-out failed:", error);
+      setSignOutError(
+        error instanceof Error ? error.message : "Unable to sign out. Please try again."
+      );
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <header className="relative z-50 w-full">
@@ -80,12 +131,34 @@ export function StorefrontHeader() {
           {/* Desktop actions */}
           <div className="hidden shrink-0 items-center gap-5 md:flex">
             <Link
-              href="/account"
-              className="flex items-center gap-2 text-sm font-medium text-[#102D38] transition-colors hover:text-[#168477]"
+              href={accountHref}
+              className={accountActionClassName}
             >
               <UserRound className="size-[19px]" strokeWidth={1.7} />
-              <span>Account</span>
+              <span>{accountLabel}</span>
             </Link>
+
+            {!sessionPending && session?.user && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  disabled={signingOut}
+                  className="inline-flex items-center gap-2 text-sm font-medium text-[#60717A] transition-colors hover:text-[#B84C3A] disabled:cursor-wait disabled:opacity-50"
+                >
+                  <LogOut className="size-[17px]" />
+                  <span>{signingOut ? "Signing out…" : "Sign out"}</span>
+                </button>
+                {signOutError && (
+                  <span
+                    role="alert"
+                    className="max-w-48 text-xs font-medium text-[#A24E3E]"
+                  >
+                    {signOutError}
+                  </span>
+                )}
+              </>
+            )}
 
             <Link
               href="/cart"
@@ -183,14 +256,18 @@ export function StorefrontHeader() {
                   </button>
                 </form>
 
-                <div className="flex items-center gap-6 py-5">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-4 py-5">
                   <Link
-                    href="/account"
+                    href={accountHref}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2 text-sm font-medium text-[#102D38]"
+                    className={
+                      isGuest
+                        ? "inline-flex items-center gap-2 rounded-full bg-[#168477] px-4 py-2.5 text-sm font-semibold text-white"
+                        : "flex items-center gap-2 text-sm font-medium text-[#102D38]"
+                    }
                   >
                     <UserRound className="size-4" />
-                    Account
+                    {accountLabel}
                   </Link>
                   <Link
                     href="/cart"
@@ -200,7 +277,23 @@ export function StorefrontHeader() {
                     <ShoppingBag className="size-4" />
                     Your cart
                   </Link>
+                  {!sessionPending && session?.user && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSignOut()}
+                      disabled={signingOut}
+                      className="flex items-center gap-2 text-sm font-medium text-[#A24E3E] disabled:opacity-50"
+                    >
+                      <LogOut className="size-4" />
+                      {signingOut ? "Signing out…" : "Sign out"}
+                    </button>
+                  )}
                 </div>
+                {signOutError && (
+                  <p role="alert" className="pb-4 text-xs font-medium text-[#A24E3E]">
+                    {signOutError}
+                  </p>
+                )}
               </nav>
             </motion.div>
           )}
