@@ -149,7 +149,7 @@ export function StorefrontHeader() {
                 <span>{signingOut ? "Signing out…" : "Sign out"}</span>
               </button>
               {signOutError && (
-                <span role="alert" className="sr-only">{signOutError}</span>
+                <span role="alert" className="max-w-48 text-xs font-medium text-[#A24E3E]">{signOutError}</span>
               )}
             )}
 
