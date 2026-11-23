@@ -64,8 +64,8 @@ export function StorefrontHeader() {
       }
 
       setMobileMenuOpen(false);
-      router.replace("/");
-      router.refresh();
+      // Force a fresh document request so no stale client session state remains.
+      window.location.replace("/");
     } catch (error) {
       console.error("Customer sign-out failed:", error);
       setSignOutError(
@@ -148,6 +148,9 @@ export function StorefrontHeader() {
                 <LogOut className="size-[17px]" />
                 <span>{signingOut ? "Signing out…" : "Sign out"}</span>
               </button>
+              {signOutError && (
+                <span role="alert" className="sr-only">{signOutError}</span>
+              )}
             )}
 
             <Link
