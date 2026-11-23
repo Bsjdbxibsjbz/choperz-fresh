@@ -15,6 +15,7 @@ export const auth = betterAuth({
           "http://localhost:3000",
           "http://127.0.0.1:3000",
           "http://192.168.0.148:3000",
+          "http://10.211.125.225:3000",
         ]
       : undefined,
 
