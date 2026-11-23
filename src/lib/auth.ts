@@ -89,7 +89,7 @@ export const auth = betterAuth({
       // Accept phone numbers in international E.164 format.
       // Example: +919876543210
       phoneNumberValidator: (value) =>
-        /^\\+[1-9]\\d{7,14}$/.test(value),
+        /^\+[1-9]\d{7,14}$/.test(value),
 
       // Development-only OTP delivery.
       // A real SMS provider must be configured before production.
@@ -109,7 +109,7 @@ export const auth = betterAuth({
       // phone-based accounts. Customers never enter this.
       signUpOnVerification: {
         getTempEmail: (phoneNumber) =>
-          `${phoneNumber.replace(/\\D/g, "")}@phone.choperz.invalid`,
+          `${phoneNumber.replace(/\D/g, "")}@phone.choperz.invalid`,
 
         getTempName: () => "Choperz Customer",
       },
